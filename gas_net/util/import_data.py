@@ -39,14 +39,14 @@ def import_network_data_from_excel(data_path):
     df_stations = pd.read_excel( data_path, sheet_name = "Stations", index_col = 0)
     Stations = pd.DataFrame.to_dict(df_stations, orient = "index")    
 
-    # # CONTROL VALVES
-    # df_cv = pd.read_excel(
-    #     data_path, sheet_name = "ControlValves", usecols="A:E", index_col = 0)
-    # # convert booleans (Excel Italian/English might raise errors)
-    # for c in ['SM reg.','SPO reg.','Closed','Bypass']:
-    #     if c in df_cv.columns:
-    #         df_cv[c] = df_cv[c].astype(str).str.upper().isin(['TRUE', 'VERO'])
-    # ControlValves = pd.DataFrame.to_dict(df_cv, orient = "index")
+    # VALVES
+    Valves = {}
+    try:
+        df_v = pd.read_excel(
+            data_path, sheet_name = "Valves", index_col = 0)
+        Valves = pd.DataFrame.to_dict(df_v, orient = "index")   
+    except:
+        print('Valves sheet missing in networkData')
 
     # # STARTING STATE
     # df_start = pd.read_excel(
@@ -55,7 +55,7 @@ def import_network_data_from_excel(data_path):
            
     # DATA
     Data = {"Arcs": Arcs, "Pipes": Pipes, "Nodes": Nodes, 
-            #"ControlValves" : ControlValves, 
+            "Valves" : Valves, 
             #"StartState": StartState,
             "Stations": Stations}   
     return Data

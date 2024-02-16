@@ -26,9 +26,12 @@ def ARC_vars(m):
 ###########################################################################
 
 def STATIONS_vars(m):
-    m.generalDistance = pyo.Var(m.Stations, m.Times, within = pyo.Reals)
-    m.Tamb = pyo.Var(m.Stations, m.Times, within = pyo.NonNegativeReals)
-    #m.Tamb = pyo.Param(m.Stations, m.Times, default=288.15, mutable=True, within = pyo.NonNegativeReals)
+    m.compressor_P = pyo.Var(m.Stations, m.Times, within = pyo.NonNegativeReals)
+    # beta lb for ipopt log
+    m.compressor_beta = pyo.Var(m.Stations, m.Times, bounds = (1.05, 2), within = pyo.NonNegativeReals)
+    # ! eta fixed 
+    m.compressor_eta = pyo.Var(m.Stations, m.Times, bounds = (0, 1), within = pyo.NonNegativeReals)
+    m.compressor_eta.fix(0.8)
     return m
 
 ######################### PIPES ###########################################
@@ -44,11 +47,7 @@ def PIPE_finite_volume_vars(
     # consumption variables
     # if wConsFree: # nmpc
     wcons_keys = list(m.Pipes_VolCenterC.data()) + [(n, 0) for n in m.Nodes.data() if n not in m.NodesSources.data()]
-    m.wCons = pyo.Var(wcons_keys, m.Times, within = pyo.Reals)
-    
-    if ContinuousSet:
-        m.M = pyo.Var(m.Pipes_VolCenterC, m.Times, within = pyo.NonNegativeReals) # 1/N-1 (centro C)        
-        m.dMdt = dae.DerivativeVar(m.M, wrt = m.Times) # --> for now it is defined over mass      
+    m.wCons = pyo.Var(wcons_keys, m.Times, within = pyo.Reals)  
     return m
 
 def PIPE_nlp_friction_vars(m):     
@@ -59,6 +58,7 @@ def PIPE_nlp_friction_vars(m):
 
 
 def PIPE_nlp_fix_vars(m, TimesSet):
+    # to be used if fixed direction
     m.yD = pyo.Var(
         m.Pipes_VolExtrC_UndirPWL, TimesSet['yD'], within = pyo.Binary)
     return m 
