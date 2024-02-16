@@ -57,13 +57,6 @@ def PIPE_nlp_friction_vars(m):
     return m       
 
 
-def PIPE_nlp_fix_vars(m, TimesSet):
-    # to be used if fixed direction
-    m.yD = pyo.Var(
-        m.Pipes_VolExtrC_UndirPWL, TimesSet['yD'], within = pyo.Binary)
-    return m 
-
-
 ######################### DUALS VARIABLES ################################
 ###########################################################################
 def DUALS_ipopt_vars(m):

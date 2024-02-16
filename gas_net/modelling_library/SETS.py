@@ -74,7 +74,6 @@ def PIPE_sets(m, networkData):
     Pipes = networkData["Pipes"]        
     # SET: PIPES
     m.Pipes = pyo.Set(initialize = Pipes.keys())    
-    m.Pipes_Directed = pyo.Set(initialize = (p for p in m.Pipes if (Pipes[p]["Direction"] == 1 or Pipes[p]["Direction"] == -1)))
     return m
 
 def PIPE_finite_volumes_sets(m, networkData):
