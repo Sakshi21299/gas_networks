@@ -52,10 +52,12 @@ class DataParserGaslib:
                        data[key]['x_coord'],
                        data[key]['y_coord']])
         self._write_to_excel(self.excel_file_path_network, new_sheet_name, column_names, dt)
-    
+    #Nvol	Direction	uMax	MMgas	Tgas	xCH4	Z
+
     def _read_pipe_data(self, data):
         new_sheet_name = "Pipes"
-        column_names = ['', 'length', 'A', 'omega', 'diameter', 'roughness']
+        column_names = ['', 'length', 'A', 'omega', 'diameter', 'roughness', 'Nvol', 
+                        'Direction', 'uMax', 'MMgas', 'Tgas', 'xCH4', 'Z']
         dt = []
         for key in data.keys():
             diameter = data[key]['diameter']
@@ -66,7 +68,14 @@ class DataParserGaslib:
                       area,
                       perimeter,
                       diameter,
-                      data[key]['roughness']
+                      data[key]['roughness'],
+                      int(2),
+                      np.NaN,
+                      np.NaN,
+                      np.NaN,
+                      np.NaN,
+                      np.NaN,
+                      np.NaN
                 ])
             
             self.all_link_names.append(data[key]['name'])
