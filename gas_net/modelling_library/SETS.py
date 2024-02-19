@@ -36,9 +36,9 @@ def NODE_sets(m, networkData):
     Nodes_ArcsIN = {n: Nodes[n]["arcsIN"] for n in Nodes.keys()}
     Nodes_ArcsOUT = {n: Nodes[n]["arcsOUT"] for n in Nodes.keys()}
     NodesSources = [n for n in Nodes.keys() if str(Nodes[n]["source"]) != "nan"]
-    # SET
+    # All nodes
     m.Nodes = pyo.Set(initialize = Nodes.keys())
-    # SUB-SET
+    # supply nodes
     m.NodesSources = pyo.Set(initialize = NodesSources)
     # MULTI-LAYER SETS
     m.Nodes_ArcsIN = pyo.Set(m.Nodes, initialize = Nodes_ArcsIN)
@@ -71,19 +71,15 @@ def STATION_set(m, networkData):
 ###########################################################################
 
 def PIPE_sets(m, networkData):
-    Pipes = networkData["Pipes"]        
-    # SET: PIPES
-    m.Pipes = pyo.Set(initialize = Pipes.keys())    
-    return m
-
-def PIPE_finite_volumes_sets(m, networkData):
-    Pipes = networkData["Pipes"]    
-    # DATA: VOLUMES PIPES
-    Pipes_VolExtrR = []
-    Pipes_VolExtrC = []
-    Pipes_VolCenterC = []
-    Pipes_VolExtrR_interm = [] # to define interm  pressure
-    Pipes_VolExtrC_interm = [] # to define interm  w
+    Pipes = networkData["Pipes"]  
+    # SETS: PIPES
+    m.Pipes = pyo.Set(initialize = Pipes.keys())      
+    # SETS: FINITE VOLUMES PIPES
+    Pipes_VolExtrR = [] # constraint: momentum balance; variables: density
+    Pipes_VolCenterC = [] # constraint: mass balance
+    Pipes_VolExtrC = [] # variables: speed u, squared speed u2
+    Pipes_VolExtrR_interm = [] # variables: pressure in the middle of the pipe
+    Pipes_VolExtrC_interm = [] # variables: mass flow rate in the middle of the pipe
     for p in Pipes.keys():
         N = Pipes[p]["Nvol"]
         for index in range(1,N+2):
@@ -96,7 +92,6 @@ def PIPE_finite_volumes_sets(m, networkData):
                     Pipes_VolCenterC.append((p,index))
                     if index != 1:
                         Pipes_VolExtrC_interm.append((p,index))
-    # SET: PIPES VOLUMES SETS
     m.Pipes_VolExtrR = pyo.Set(initialize = Pipes_VolExtrR)
     m.Pipes_VolExtrC = pyo.Set(initialize = Pipes_VolExtrC)
     m.Pipes_VolExtrR_interm = pyo.Set(initialize = Pipes_VolExtrR_interm)
