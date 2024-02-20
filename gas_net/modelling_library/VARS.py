@@ -8,11 +8,12 @@ import pyomo.dae as dae
 ######################### NETWORK ###########################################
 ###########################################################################
 
-def NODE_vars(m, wSourceFree = False):
-    # NODES
+def NODE_vars(m):
+    # ALL NODES
     m.node_p = pyo.Var(m.Nodes, m.Times, within = pyo.NonNegativeReals)
-    #if wSourceFree: 
-    # nmpc
+    # Remark: node demand (wCons) is defined toghetwer with pipes demand
+    # SUPPLY NODES
+    m.pSource = pyo.Var(m.NodesSources, m.Times, within = pyo.NonNegativeReals) 
     m.wSource = pyo.Var(m.NodesSources, m.Times, within = pyo.Reals) 
     return m
 
@@ -29,7 +30,7 @@ def STATIONS_vars(m):
     m.compressor_P = pyo.Var(m.Stations, m.Times, within = pyo.NonNegativeReals)
     # beta lb for ipopt log
     m.compressor_beta = pyo.Var(m.Stations, m.Times, bounds = (1.05, 2), within = pyo.NonNegativeReals)
-    # ! eta fixed 
+    # ! SAKSHI --> eta fixed
     m.compressor_eta = pyo.Var(m.Stations, m.Times, bounds = (0, 1), within = pyo.NonNegativeReals)
     m.compressor_eta.fix(0.8)
     return m
@@ -38,22 +39,24 @@ def STATIONS_vars(m):
 ###########################################################################
 
 # PIPES
-def PIPE_finite_volume_vars(
-        m, ContinuousSet=False, wConsFree = False):
+def PIPE_vars(m):
+    # finite volumes --> variables in the middle of the pipes (at boundaries, pressure = node_p, mass flow = inlet_w/outlet_w)
     m.interm_w = pyo.Var(
-        m.Pipes_VolExtrC_interm, m.Times, within = pyo.Reals) # 2/N-1 (+ inlet_w, outlet_w) (estremi C)
+        m.Pipes_VolExtrC_interm, m.Times, within = pyo.Reals) 
+    # ! SAKSHI --> pressure bounds
+    p_min, p_max = 30e5, 120e5
     m.interm_p = pyo.Var(
-        m.Pipes_VolExtrR_interm, m.Times, within = pyo.NonNegativeReals) # 2/N (+ inlet_p, outlet_p) (estremi R) 
-    # consumption variables
-    # if wConsFree: # nmpc
-    wcons_keys = list(m.Pipes_VolCenterC.data()) + [(n, 0) for n in m.Nodes.data() if n not in m.NodesSources.data()]
-    m.wCons = pyo.Var(wcons_keys, m.Times, within = pyo.Reals)  
-    return m
-
-def PIPE_nlp_friction_vars(m):     
+        m.Pipes_VolExtrR_interm, m.Times, bounds = (p_min, p_max), within = pyo.NonNegativeReals) 
+    # friction    
     m.u2 = pyo.Var(m.Pipes_VolExtrC, m.Times, within = pyo.Reals)
     m.u = pyo.Var(m.Pipes_VolExtrC, m.Times, within = pyo.Reals) 
-    m.pipe_rho = pyo.Var(m.Pipes_VolExtrR, m.Times, within = pyo.NonNegativeReals)   
+    # density
+    # ! SAKSHI --> density bounds
+    rho_min, rho_max = 30, 80
+    m.pipe_rho = pyo.Var(m.Pipes_VolExtrR, m.Times, bounds = (rho_min, rho_max), within = pyo.NonNegativeReals)   
+    # consumption variables --> nodes and pipes
+    wcons_keys = list(m.Pipes_VolCenterC.data()) + [(n, 0) for n in m.Nodes.data() if n not in m.NodesSources.data()]
+    m.wCons = pyo.Var(wcons_keys, m.Times, within = pyo.Reals)  
     return m       
 
 

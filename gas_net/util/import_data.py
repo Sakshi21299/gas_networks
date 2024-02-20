@@ -46,17 +46,11 @@ def import_network_data_from_excel(data_path):
             data_path, sheet_name = "Valves", index_col = 0)
         Valves = pd.DataFrame.to_dict(df_v, orient = "index")   
     except:
-        print('Valves sheet missing in networkData')
-
-    # # STARTING STATE
-    # df_start = pd.read_excel(
-    #     data_path, sheet_name = "StartState", usecols = "A:D", index_col = [0,1])
-    # StartState = DataFrame_2levels_to_dict(df_start)
+        print('!!! Valves sheet missing in networkData')
            
     # DATA
     Data = {"Arcs": Arcs, "Pipes": Pipes, "Nodes": Nodes, 
             "Valves" : Valves, 
-            #"StartState": StartState,
             "Stations": Stations}   
     return Data
 
@@ -102,12 +96,9 @@ def import_time_varying_data_from_excel(data_path):
     pSource, wSource = rearrange_setpoint_data(df_sources)                 
     # WCONS (pipe/nodes)
     df_wcons = pd.read_excel(data_path, sheet_name = "wcons",index_col = [0,1], header = 0)
-    wcons = DataFrame_2levels_to_dict(df_wcons)    
-    # # CONTROL VALVES 
-    # df_cv = pd.read_excel(
-    #     data_path, sheet_name = "ControlValvesSP",index_col = [0,1], header = 0)
-    # pCV, wCV = rearrange_setpoint_data( df_cv)   
-    Data = {"pSource": pSource,"wSource": wSource, "wCons":wcons}# "pCV": pCV, "wCV": wCV}
+    wcons = DataFrame_2levels_to_dict(df_wcons)     
+    Data = {
+        "pSource": pSource,"wSource": wSource, "wCons":wcons}
     return Data
 
 
@@ -119,7 +110,13 @@ def import_data_from_excel(network_data_path, input_data_path):
     # topology
     networkData = import_network_data_from_excel(network_data_path)
     # profiles
-    #inputData = import_time_varying_data_from_excel(input_data_path)
+    inputData = import_time_varying_data_from_excel(input_data_path)
     # add missing consumption in pipes finite volumes
-    #inputData['wCons'] = set_pipe_cons_to_default(inputData['wCons'], networkData['Pipes'])
+    inputData['wCons'] = set_pipe_cons_to_default(inputData['wCons'], networkData['Pipes'])
     return networkData
+    try:
+        inputData['wCons'] = set_pipe_cons_to_default(inputData['wCons'], networkData['Pipes'])
+    except:
+        print('!!! ERROR importing inputData. No matching with networkData')
+    return networkData, inputData
+

@@ -23,10 +23,9 @@ def STATION_constr(m, scale):
         P = m.compressor_P[s, t]
         beta = m.compressor_beta[s, t]
         eta = m.compressor_eta[s, t]
-        cp = 'PLACEHOLDER'
-        gamma = 'PLACEHOLDER'
-        Tin =  'PLACEHOLDER'
-        teta = 'PLACEHOLDER'
+        cp = 1#'PLACEHOLDER'
+        Tin =  1#'PLACEHOLDER'
+        teta = 1#'PLACEHOLDER'
         dh = cp * Tin * (beta ** teta - 1)
         return P == (w * dh / eta) / scale['P']
     m.STATION_power_balance = pyo.Constraint(
