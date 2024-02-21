@@ -49,3 +49,23 @@ def fix_exogenous_inputs(m, scale, Options, networkData, inputData):
 
     return m
 
+
+
+def init_network_default(m, p_default = 55e5):
+    
+    ''' Initialization of network to default values '''
+
+    scale = {
+        "p": 100000, # pressure
+        "P": 100000, # compressor power
+        "w": 1, # mass flow
+        'u2': 10 # squared speed
+        }
+
+    # pressure initialization
+    m.node_p[:, :] = p_default / scale['p']
+    m.interm_p[:, :, :] = p_default / scale['p']
+
+    # ! add other default initialization
+    
+    return m

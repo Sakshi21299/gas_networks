@@ -115,11 +115,10 @@ def import_data_from_excel(network_data_path, input_data_path):
     # profiles
     inputData = import_time_varying_data_from_excel(input_data_path)
     # add missing consumption in pipes finite volumes
-    inputData['wCons'] = set_pipe_cons_to_default(inputData['wCons'], networkData['Pipes'])
-    
-    try:
-        inputData['wCons'] = set_pipe_cons_to_default(inputData['wCons'], networkData['Pipes'])
-    except:
-        print('!!! ERROR importing inputData. No matching with networkData')
+    inputData['wCons'] = set_pipe_cons_to_default(inputData['wCons'], networkData['Pipes']) 
+    # try:
+    #     inputData['wCons'] = set_pipe_cons_to_default(inputData['wCons'], networkData['Pipes'])
+    # except:
+    #     print('!!! ERROR importing inputData. No matching with networkData')
     return networkData, inputData
 

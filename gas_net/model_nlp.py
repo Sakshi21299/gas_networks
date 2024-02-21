@@ -24,7 +24,7 @@ from gas_net.modelling_library.VARS import (
 
 
 # components (fix inputs)
-from gas_net.modelling_library.fix_variables import fix_exogenous_inputs
+from gas_net.modelling_library.fix_and_init_vars import fix_exogenous_inputs
 
 # components (constraints)
 from gas_net.modelling_library.objective_functions import OBJ_compressor_power
@@ -86,7 +86,7 @@ def buildNonLinearModel(
     # STATION
     m = STATIONS_vars(m)
     # PIPES
-    m = PIPE_vars(m)
+    m = PIPE_vars(m, scale)
     # DUALS
     if duals:
         m = DUALS_ipopt_vars(m)             
@@ -113,8 +113,7 @@ def buildNonLinearModel(
     m = PIPE_mass_constr(
             m, scale, Opt['dt'], 
             method = Opt["finite_diff_time"], dynamic = Opt['dynamic'])
-    m = PIPE_momentum_constr(
-            m, scale, networkData)
+    m = PIPE_momentum_constr(m, scale, networkData)
     m = PIPE_nlp_auxiliary_constr( m, scale)
     m = PIPE_flow_reversal_constr(m, scale)  # flow reversal         
 
