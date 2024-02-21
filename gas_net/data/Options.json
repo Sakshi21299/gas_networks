@@ -3,5 +3,6 @@
     "T": 24, 
     "dt" : 3600,      
     "finite_diff_time": "BACKWARD",
+    "dynamic": true,
     "eps": 0.001
 }

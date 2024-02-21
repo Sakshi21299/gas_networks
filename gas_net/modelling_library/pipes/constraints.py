@@ -12,27 +12,24 @@ from gas_net.modelling_library.pipes.functions import Pipe_MassFlow, Pipe_GasDen
 #==============================================================================
 
 def PIPE_mass_constr(
-        m, scale, dt, method = 'BACKWARD'):
+        m, scale, dt, method = 'BACKWARD', dynamic=True):
     
     ## assert: options ###
     assert(method in ['BACKWARD', 'FORWARD'])
 
     ############## dynamic mass balance #########################  
-    def PIPE_mass_balance_rule(
+    def PIPE_mass_balance_dynamic_rule(
             m, p, vol, t): # 1-->N-1 
-
         # skip first time step   
         if t == m.Times.first():
             return pyo.Constraint.Skip
         else:
             V = m.Area[p]*m.Length[p]
             N = m.Nvol[p]    
-            
             ############ left hand side #################
             # LHS: derivative term (between t and t_prev)                         
             dMdt = Pipe_DerMass(
                 m, p, vol, t, N, V, scale, dt)                
-
             ############## right hand side #############
             # RHS: define timestep depending on differentiation method
             t_RHS = m.Times.prev(t) if method=="FORWARD" else t           
@@ -44,9 +41,30 @@ def PIPE_mass_constr(
     
             ############## constraint #########################              
             return dMdt == (w*scale["w"] - w_next*scale["w"] - cons*scale["w"])
+
+    ############## steady mass balance #########################  
+    def PIPE_mass_balance_steady_rule(
+            m, p, vol, t): # 1-->N-1 
+          
+        ############## right hand side #############        
+        # RHS: mass flow rates
+        N = m.Nvol[p]    
+        w = Pipe_MassFlow(m, p, vol, t, N)
+        w_next = Pipe_MassFlow(m, p, vol+1, t, N) # next finite volume
+        # RHS: consumption
+        cons = m.wCons[p, vol, t]
+
+        ############## constraint #########################              
+        return 0 == (w*scale["w"] - w_next*scale["w"] - cons*scale["w"])
+
+    if dynamic:
         m.PIPE_mass_balance = pyo.Constraint(
             m.Pipes_VolCenterC, m.Times, 
-            rule = PIPE_mass_balance_rule)
+            rule = PIPE_mass_balance_dynamic_rule)
+    else:
+        m.PIPE_mass_balance = pyo.Constraint(
+            m.Pipes_VolCenterC, m.Times, 
+            rule = PIPE_mass_balance_steady_rule)        
     return m 
 
 
