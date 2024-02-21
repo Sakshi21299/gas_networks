@@ -1,6 +1,6 @@
 import pyomo.environ as pyo
 
-def STATION_constr(m, scale):
+def STATION_constr(m, scale, inputData):
  
     def STATION_mass_balance_rule(m, s, t):
         return m.inlet_w[s, t] == m.outlet_w[s, t]
@@ -23,9 +23,10 @@ def STATION_constr(m, scale):
         P = m.compressor_P[s, t]
         beta = m.compressor_beta[s, t]
         eta = m.compressor_eta[s, t]
-        cp = 1#'PLACEHOLDER'
-        Tin =  1#'PLACEHOLDER'
-        teta = 1#'PLACEHOLDER'
+        cp = 2.34 #Cp gas used in IDAES
+        Tin = inputData['GasParams']['Temperature'][0]
+        gamma = inputData['GasParams']['gamma'][0]
+        teta = 1-1/gamma
         dh = cp * Tin * (beta ** teta - 1)
         return P == (w * dh / eta) / scale['P']
     m.STATION_power_balance = pyo.Constraint(

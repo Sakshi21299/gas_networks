@@ -14,7 +14,7 @@ def NODE_vars(m):
     # Remark: node demand (wCons) is defined toghetwer with pipes demand
     # SUPPLY NODES
     m.pSource = pyo.Var(m.NodesSources, m.Times, within = pyo.NonNegativeReals) 
-    m.wSource = pyo.Var(m.NodesSources, m.Times, within = pyo.Reals) 
+    m.wSource = pyo.Var(m.NodesSources, m.Times, within = pyo.NonNegativeReals) 
     return m
 
 def ARC_vars(m):
@@ -29,6 +29,7 @@ def ARC_vars(m):
 def STATIONS_vars(m):
     m.compressor_P = pyo.Var(m.Stations, m.Times, within = pyo.NonNegativeReals)
     # beta lb for ipopt log
+    # ! SAKSHI --> bounds beta
     m.compressor_beta = pyo.Var(m.Stations, m.Times, bounds = (1.05, 2), within = pyo.NonNegativeReals)
     # ! SAKSHI --> eta fixed
     m.compressor_eta = pyo.Var(m.Stations, m.Times, bounds = (0, 1), within = pyo.NonNegativeReals)
@@ -39,14 +40,14 @@ def STATIONS_vars(m):
 ###########################################################################
 
 # PIPES
-def PIPE_vars(m):
+def PIPE_vars(m, scale):
     # finite volumes --> variables in the middle of the pipes (at boundaries, pressure = node_p, mass flow = inlet_w/outlet_w)
     m.interm_w = pyo.Var(
         m.Pipes_VolExtrC_interm, m.Times, within = pyo.Reals) 
     # ! SAKSHI --> pressure bounds
     p_min, p_max = 30e5, 120e5
     m.interm_p = pyo.Var(
-        m.Pipes_VolExtrR_interm, m.Times, bounds = (p_min, p_max), within = pyo.NonNegativeReals) 
+        m.Pipes_VolExtrR_interm, m.Times, bounds = (p_min/scale['p'], p_max/scale['p']), within = pyo.NonNegativeReals) 
     # friction    
     m.u2 = pyo.Var(m.Pipes_VolExtrC, m.Times, within = pyo.Reals)
     m.u = pyo.Var(m.Pipes_VolExtrC, m.Times, within = pyo.Reals) 

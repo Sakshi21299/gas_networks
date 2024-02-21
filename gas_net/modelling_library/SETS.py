@@ -15,7 +15,8 @@ def TIME_sets(m, Opt):
     T = Opt["T"]
     dt = Opt["dt"]
     times = np.arange(T0,T+dt/3600,dt/3600)
-    m.Times = dae.ContinuousSet(initialize=times)
+    m.Times = dae.ContinuousSet(initialize=times) # nmpc library works only with continuous set
+    #m.Times = pyo.Set(initialize=times)
     return m
 
 ############################### NETWORK ###################################
