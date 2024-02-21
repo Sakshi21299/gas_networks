@@ -14,7 +14,7 @@ def NODE_vars(m):
     # Remark: node demand (wCons) is defined toghetwer with pipes demand
     # SUPPLY NODES
     m.pSource = pyo.Var(m.NodesSources, m.Times, within = pyo.NonNegativeReals) 
-    m.wSource = pyo.Var(m.NodesSources, m.Times, within = pyo.Reals) 
+    m.wSource = pyo.Var(m.NodesSources, m.Times, within = pyo.NonNegativeReals) 
     return m
 
 def ARC_vars(m):
