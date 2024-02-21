@@ -96,9 +96,12 @@ def import_time_varying_data_from_excel(data_path):
     pSource, wSource = rearrange_setpoint_data(df_sources)                 
     # WCONS (pipe/nodes)
     df_wcons = pd.read_excel(data_path, sheet_name = "wcons",index_col = [0,1], header = 0)
-    wcons = DataFrame_2levels_to_dict(df_wcons)     
+    wcons = DataFrame_2levels_to_dict(df_wcons)   
+    #Input gas parameters
+    df_params = pd.read_excel(data_path, sheet_name = "GasParams", header = 0)
+    params = pd.DataFrame.to_dict(df_params)   
     Data = {
-        "pSource": pSource,"wSource": wSource, "wCons":wcons}
+        "pSource": pSource,"wSource": wSource, "wCons":wcons, "GasParams":params}
     return Data
 
 
@@ -113,7 +116,7 @@ def import_data_from_excel(network_data_path, input_data_path):
     inputData = import_time_varying_data_from_excel(input_data_path)
     # add missing consumption in pipes finite volumes
     inputData['wCons'] = set_pipe_cons_to_default(inputData['wCons'], networkData['Pipes'])
-    return networkData
+    
     try:
         inputData['wCons'] = set_pipe_cons_to_default(inputData['wCons'], networkData['Pipes'])
     except:
