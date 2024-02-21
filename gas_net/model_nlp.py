@@ -111,7 +111,8 @@ def buildNonLinearModel(
     m = VALVE_constr(m)
     # PIPE
     m = PIPE_mass_constr(
-            m, scale, Opt['dt'], method = Opt["finite_diff_time"])
+            m, scale, Opt['dt'], 
+            method = Opt["finite_diff_time"], dynamic = Opt['dynamic'])
     m = PIPE_momentum_constr(
             m, scale, networkData)
     m = PIPE_nlp_auxiliary_constr( m, scale)
