@@ -12,6 +12,7 @@ class DataParserGaslib:
         self.current_path = os.getcwd()
         self.folder_path = os.path.join(self.current_path, self.folder)
         self.excel_file_path_network = os.path.join(self.folder_path, "networkData.xlsx")
+        self.excel_file_path_input = os.path.join(self.folder_path, "inputData.xlsx")
         self.all_link_names = []
         
     def _write_to_excel(self, excel_file_path, new_sheet_name, column_names, new_data):
@@ -43,6 +44,8 @@ class DataParserGaslib:
         new_sheet_name = "Nodes"
         column_names =['', 'source', 'pMin', 'pMax', 'height', 'lat', 'long']
         dt = []
+        self.source_nodes = []
+        self.sink_nodes = []
         for key in data.keys():
             dt.append([data[key]['name'], 
                        data[key]['name'] if data[key]['name'].startswith('entry') else np.NaN, 
@@ -51,13 +54,17 @@ class DataParserGaslib:
                        data[key]['elevation'],
                        data[key]['x_coord'],
                        data[key]['y_coord']])
+            if data[key]['name'].startswith('entry'):
+                self.source_nodes.append(data[key]['name'])
+            if data[key]['name'].startswith('exit'):
+                self.sink_nodes.append(data[key]['name'])
         self._write_to_excel(self.excel_file_path_network, new_sheet_name, column_names, dt)
     #Nvol	Direction	uMax	MMgas	Tgas	xCH4	Z
 
     def _read_pipe_data(self, data):
         new_sheet_name = "Pipes"
         column_names = ['', 'length', 'A', 'omega', 'diameter', 'roughness', 'Nvol', 
-                        'Direction', 'uMax', 'MMgas', 'Tgas', 'xCH4', 'Z']
+                        'MMgas', 'Tgas', 'xCH4', 'Z']
         dt = []
         for key in data.keys():
             diameter = data[key]['diameter']
@@ -70,12 +77,10 @@ class DataParserGaslib:
                       diameter,
                       data[key]['roughness'],
                       int(2),
-                      np.NaN,
-                      np.NaN,
-                      np.NaN,
-                      np.NaN,
-                      np.NaN,
-                      np.NaN
+                      18.5674,
+                      283.15,
+                      0.9,
+                      0.86
                 ])
             
             self.all_link_names.append(data[key]['name'])
@@ -109,6 +114,47 @@ class DataParserGaslib:
             self.all_link_names.append(data[key]['name'])
         self._write_to_excel(self.excel_file_path_network, new_sheet_name, column_names, dt) 
             
+    def _read_sources_data(self, data):
+        new_sheet_name = "SourcesSP_steady_state"
+        column_names = ['', 'max_injection', 'min_injection', 'cost']
+        dt = []
+        for key in data.keys():
+            if key.startswith("entry_nominations"):
+                for key2 in data[key]:
+                   for source in self.source_nodes:
+                       if source.endswith(key2):
+                           dt.append([source,
+                                     data[key][key2]['max_injection'],
+                                     data[key][key2]['min_injection'],
+                                     data[key][key2]['cost']])
+        self._write_to_excel(self.excel_file_path_input, new_sheet_name, column_names, dt)
+        
+    def _read_sink_data(self, data):
+        new_sheet_name = "Sinks_steady_state"
+        column_names = ['', 'max_withdrawal', 'min_withdrawal', 'cost']
+        dt = []
+        for key in data.keys():
+            if key.startswith("exit_nominations"):
+                for key2 in data[key]:
+                   for sink in self.sink_nodes:
+                       if sink.endswith(key2):
+                           dt.append([sink,
+                                     data[key][key2]['max_withdrawal'],
+                                     data[key][key2]['min_withdrawal'],
+                                     data[key][key2]['cost']])
+        
+        self._write_to_excel(self.excel_file_path_input, new_sheet_name, column_names, dt)
+      
+    def _read_gas_parameters(self, data):
+        new_sheet_name = "GasParams"
+        column_names =["gamma", "Temperature", "Specific_gravity"]
+        dt = []
+        print(data)
+        dt.append([data["Specific heat capacity ratio"],
+                  data["Temperature (K):"],
+                  data["Gas specific gravity (G):"]])
+        self._write_to_excel(self.excel_file_path_input, new_sheet_name, column_names, dt)
+       
     
     def read_data(self):
         for name in self.file_names:
@@ -131,10 +177,16 @@ class DataParserGaslib:
             #Need to generate input data since gaslib has steady state consumption
             if name == "nominations.json":
                 print(data)
+                for key in data.keys():
+                    self._read_sources_data(data[key])
+                    self._read_sink_data(data[key])
             if name == 'params.json':
-                print(data)
+                for key in data.keys():
+                    self._read_gas_parameters(data[key])
             if name == "slack_nodes.json":
                 print(data)
+    
+   
  
 
 if __name__ =="__main__":
