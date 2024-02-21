@@ -3,6 +3,7 @@ import os
 import pandas as pd
 import numpy as np 
 from pathlib import Path
+from gas_net.data.compressor_xml_file_reader import get_compressor_coefficients
 
 class DataParserGaslib:
     def __init__(self, folder ="data_files\GasLib_11", 
@@ -22,7 +23,10 @@ class DataParserGaslib:
             xls = pd.ExcelFile(excel_file_path)
         
             # Create a DataFrame from the new data
-            new_df = pd.DataFrame(new_data, columns = column_names)
+            if column_names == []:
+                new_df = pd.DataFrame(new_data)
+            else:
+                new_df = pd.DataFrame(new_data, columns = column_names)
         
         
             # Append the new DataFrame to the existing Excel file
@@ -33,7 +37,10 @@ class DataParserGaslib:
         
         else:
             # Create a new Excel file if it doesn't exist
-            new_df = pd.DataFrame(new_data, columns = column_names)
+            if column_names == []:
+                new_df = pd.DataFrame(new_data)
+            else:
+                new_df = pd.DataFrame(new_data, columns = column_names)
         
             # Write the new DataFrame to the new Excel file
             new_df.to_excel(excel_file_path, sheet_name = new_sheet_name, index=False, header=True)
@@ -155,7 +162,22 @@ class DataParserGaslib:
                   data["Gas specific gravity (G):"]])
         self._write_to_excel(self.excel_file_path_input, new_sheet_name, column_names, dt)
        
-    
+    def _read_compressor_maps_data(self):
+        file_path = os.path.join(self.folder_path, "compressor_coefs.cs")
+        dt_isoline, dt_eta, dt_surge, dt_choke = get_compressor_coefficients(file_path)
+        column_names = []
+        new_sheet_name = "station_isoline_coef"
+        self._write_to_excel(self.excel_file_path_input, new_sheet_name, column_names, dt_isoline)
+        
+        new_sheet_name = "station_eta_coef"
+        self._write_to_excel(self.excel_file_path_input, new_sheet_name, column_names, dt_eta)
+        
+        new_sheet_name = "station_surge_coefs"
+        self._write_to_excel(self.excel_file_path_input, new_sheet_name, column_names, dt_surge)
+        
+        new_sheet_name = "station_choke_coefs"
+        self._write_to_excel(self.excel_file_path_input, new_sheet_name, column_names, dt_choke)
+        
     def read_data(self):
         for name in self.file_names:
             file_path = os.path.join(self.folder_path, name)
@@ -185,7 +207,8 @@ class DataParserGaslib:
                     self._read_gas_parameters(data[key])
             if name == "slack_nodes.json":
                 print(data)
-    
+        self._read_compressor_maps_data()
+
    
  
 
