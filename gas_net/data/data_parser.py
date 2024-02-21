@@ -7,14 +7,14 @@ from gas_net.data.compressor_xml_file_reader import get_compressor_coefficients
 
 class DataParserGaslib:
     def __init__(self, folder ="data_files\GasLib_11", 
-                 file_names = ["network.json", "nominations.json", "params.json", "slack_nodes.json"]):
+                 file_names = ["params.json", "network.json", "nominations.json", "slack_nodes.json"]):
         self.folder = folder
         self.file_names = file_names
         self.current_path = os.getcwd()
         self.folder_path = os.path.join(self.current_path, self.folder)
         self.excel_file_path_network = os.path.join(self.folder_path, "networkData.xlsx")
         self.excel_file_path_input = os.path.join(self.folder_path, "inputData.xlsx")
-        self.all_link_names = []
+        self.all_arcs = {}
         
     def _write_to_excel(self, excel_file_path, new_sheet_name, column_names, new_data):
         # Check if the file exists
@@ -53,6 +53,7 @@ class DataParserGaslib:
         dt = []
         self.source_nodes = []
         self.sink_nodes = []
+        self.node_map = {}
         for key in data.keys():
             dt.append([data[key]['name'], 
                        data[key]['name'] if data[key]['name'].startswith('entry') else np.NaN, 
@@ -61,10 +62,11 @@ class DataParserGaslib:
                        data[key]['elevation'],
                        data[key]['x_coord'],
                        data[key]['y_coord']])
-            if data[key]['name'].startswith('entry'):
+            if data[key]['name'].startswith('entry') or data[key]['name'].startswith('source'):
                 self.source_nodes.append(data[key]['name'])
-            if data[key]['name'].startswith('exit'):
+            if data[key]['name'].startswith('exit') or data[key]['name'].startswith('sink'):
                 self.sink_nodes.append(data[key]['name'])
+            self.node_map[int(key)] = data[key]['name']
         self._write_to_excel(self.excel_file_path_network, new_sheet_name, column_names, dt)
     #Nvol	Direction	uMax	MMgas	Tgas	xCH4	Z
 
@@ -85,22 +87,22 @@ class DataParserGaslib:
                       data[key]['roughness'],
                       int(2),
                       18.5674,
-                      283.15,
+                      self.gas_temperature,
                       0.9,
                       0.86
                 ])
             
-            self.all_link_names.append(data[key]['name'])
+            self.all_arcs[data[key]['name']] = [self.node_map[data[key]['fr_node']], self.node_map[data[key]['to_node']]] 
         self._write_to_excel(self.excel_file_path_network, new_sheet_name, column_names, dt)
         
     def _read_arc_data(self):
         new_sheet_name = "Arcs"
         column_names = ['', 'nodeIN', 'nodeOUT']
         dt = []
-        for name in self.all_link_names:
-            node_in = name.split('_')[1]
-            node_out = name.split('_')[2]
-            dt.append([name,
+        for key in self.all_arcs.keys():
+            node_in = self.all_arcs[key][0]
+            node_out = self.all_arcs[key][1]
+            dt.append([key,
                        node_in,
                        node_out
                 ])
@@ -118,7 +120,7 @@ class DataParserGaslib:
                        data[key]['max_outlet_pressure'],
                        data[key]['max_power']
                 ])
-            self.all_link_names.append(data[key]['name'])
+            self.all_arcs[data[key]['name']] = [self.node_map[data[key]['fr_node']], self.node_map[data[key]['to_node']]] 
         self._write_to_excel(self.excel_file_path_network, new_sheet_name, column_names, dt) 
             
     def _read_sources_data(self, data):
@@ -156,7 +158,7 @@ class DataParserGaslib:
         new_sheet_name = "GasParams"
         column_names =["gamma", "Temperature", "Specific_gravity"]
         dt = []
-        print(data)
+        self.gas_temperature =  data["Temperature (K):"]
         dt.append([data["Specific heat capacity ratio"],
                   data["Temperature (K):"],
                   data["Gas specific gravity (G):"]])
@@ -198,13 +200,13 @@ class DataParserGaslib:
             #Not reading this data yet
             #Need to generate input data since gaslib has steady state consumption
             if name == "nominations.json":
-                print(data)
                 for key in data.keys():
                     self._read_sources_data(data[key])
                     self._read_sink_data(data[key])
             if name == 'params.json':
                 for key in data.keys():
                     self._read_gas_parameters(data[key])
+                    
             if name == "slack_nodes.json":
                 print(data)
         self._read_compressor_maps_data()
