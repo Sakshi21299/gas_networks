@@ -92,7 +92,7 @@ def buildNonLinearModel(
         m = DUALS_ipopt_vars(m)             
     # FIX EXOGENOUS INPUTS (TIME varying input variables)
     # ! FIX EXOGENOUS INPUTS ONCE DATA IS AVAILABLE
-    #m = fix_exogenous_inputs(m, scale, Opt, networkData, inputData)
+    m = fix_exogenous_inputs(m, scale, Opt, networkData, inputData)
 
     ############################### OBJECTIVE FUNCTION ########################
     ###########################################################################
@@ -106,7 +106,7 @@ def buildNonLinearModel(
     m = NODE_constr(m, scale, networkData)
     m = NODE_SOURCE_constr(m) # supply nodes
     # STATION
-    m = STATION_constr(m, scale)
+    m = STATION_constr(m, scale, inputData)
     # VALVE
     m = VALVE_constr(m)
     # PIPE
@@ -118,4 +118,3 @@ def buildNonLinearModel(
     m = PIPE_flow_reversal_constr(m, scale)  # flow reversal         
 
     return m
-
