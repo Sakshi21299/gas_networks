@@ -25,3 +25,11 @@ Options = json.load(f)
 # build model
 m = buildNonLinearModel(
         networkData, inputData, Options)
+
+
+from gas_net.util.networkx_graph import graph_construction, graph_plot
+
+G = graph_construction(networkData)
+
+
+graph_plot(G, node_labels=True)
