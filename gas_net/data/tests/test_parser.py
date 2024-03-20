@@ -16,7 +16,7 @@ from gas_net.modelling_library.SETS import (NODE_sets,
 import pyomo.environ as pyo
 
 class TestGaslibParser:
-    def test_sets_build(self):
+    def test_sets_build_gaslib11(self):
        
         self.network_data_path = r'C:\\Users\\ssnaik\\Biegler\\gas_networks_italy\\gas_networks\\gas_net\\data\\data_files\\Gaslib_11\\networkData.xlsx'
         self.input_data_path = r'C:\\Users\\ssnaik\\Biegler\\gas_networks_italy\\gas_networks\\gas_net\\data\\data_files\\Gaslib_11\\inputData.xlsx'
@@ -33,7 +33,6 @@ class TestGaslibParser:
         
         #Make arc sets
         ARC_sets(m, self.networkData)
-        assert len(m.Arcs) == 10
         
         #Make station set
         STATION_set(m, self.networkData)
@@ -42,8 +41,39 @@ class TestGaslibParser:
         #Make pipe set
         PIPE_sets(m, self.networkData)
         assert len(m.Pipes) == 8
-     
         
+        assert len(m.Arcs) == len(m.Pipes) + len(m.Stations)
+        
+     
+    def test_sets_build_gaslib40(self):
+        self.network_data_path = r'C:\\Users\\ssnaik\\Biegler\\gas_networks_italy\\gas_networks\\gas_net\\data\\data_files\\Gaslib_40\\networkData.xlsx'
+        self.input_data_path = r'C:\\Users\\ssnaik\\Biegler\\gas_networks_italy\\gas_networks\\gas_net\\data\\data_files\\Gaslib_40\\inputData.xlsx'
+        
+        # import data
+        self.networkData, self.inputData = import_data_from_excel(self.network_data_path, self.input_data_path)
+        
+        #Make model
+        m = pyo.ConcreteModel()
+        
+        #Make node sets
+        NODE_sets(m, self.networkData)
+        assert len(m.Nodes) == 40
+        
+        #Make arc sets
+        ARC_sets(m, self.networkData)
+        print(len(m.Arcs))
+        
+        #Make station set
+        STATION_set(m, self.networkData)
+        assert len(m.Stations) == 6
+        
+        #Make pipe set
+        PIPE_sets(m, self.networkData)
+        assert len(m.Pipes) == 39
+        
+        assert len(m.Arcs) == len(m.Pipes) + len(m.Stations)
+    
+    
         
 if __name__ == "__main__":
     pytest.main()
