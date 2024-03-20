@@ -86,7 +86,7 @@ def buildNonLinearModel(
     # STATION
     m = STATIONS_vars(m)
     # PIPES
-    m = PIPE_vars(m, scale)
+    m = PIPE_vars(m, scale, networkData)
     # DUALS
     if duals:
         m = DUALS_ipopt_vars(m)             
