@@ -40,12 +40,13 @@ def STATIONS_vars(m):
 ###########################################################################
 
 # PIPES
-def PIPE_vars(m, scale):
+def PIPE_vars(m, scale, networkData):
     # finite volumes --> variables in the middle of the pipes (at boundaries, pressure = node_p, mass flow = inlet_w/outlet_w)
     m.interm_w = pyo.Var(
         m.Pipes_VolExtrC_interm, m.Times, within = pyo.Reals) 
     # ! SAKSHI --> pressure bounds
-    p_min, p_max = 30e5, 120e5
+    p_min = min(networkData['Nodes'][key]['pMin'] for key in networkData['Nodes'].keys())
+    p_max = max(networkData['Nodes'][key]['pMax'] for key in networkData['Nodes'].keys())
     m.interm_p = pyo.Var(
         m.Pipes_VolExtrR_interm, m.Times, bounds = (p_min/scale['p'], p_max/scale['p']), within = pyo.NonNegativeReals) 
     # friction    
@@ -53,7 +54,12 @@ def PIPE_vars(m, scale):
     m.u = pyo.Var(m.Pipes_VolExtrC, m.Times, within = pyo.Reals) 
     # density
     # ! SAKSHI --> density bounds
-    rho_min, rho_max = 30, 80
+    temperature = min(networkData['Pipes'][key]['Tgas'] for key in networkData['Pipes'].keys())
+    MMgas = min(networkData['Pipes'][key]['MMgas'] for key in networkData['Pipes'].keys())
+    
+    rho_min = p_min*MMgas/(8314*temperature)
+    rho_max = p_max*MMgas/(8314*temperature)
+    
     m.pipe_rho = pyo.Var(m.Pipes_VolExtrR, m.Times, bounds = (rho_min, rho_max), within = pyo.NonNegativeReals)   
     # consumption variables --> nodes and pipes
     wcons_keys = list(m.Pipes_VolCenterC.data()) + [(n, 0) for n in m.Nodes.data() if n not in m.NodesSources.data()]
