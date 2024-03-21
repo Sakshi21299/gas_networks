@@ -21,10 +21,6 @@ def VALVE_constr(m):
         m.Valves, m.Times,
         rule = VALVE_pressure_flow_rule)
 
-    m.inlet_w.setlb(0)
+    #m.inlet_w.setlb(0)
 
     return m
-
-
-
-
