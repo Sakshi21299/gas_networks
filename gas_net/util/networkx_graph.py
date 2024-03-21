@@ -185,16 +185,18 @@ def plot_graph_with_layout(G, node_labels=False):
 
 def colorcode_nodes(labels):
     # Define node colors based on node types
-    node_colors = {'source': 'blue', 'sink': 'lightgreen', 'bypass': 'yellow'}
+    node_colors = {'source': 'blue', 'sink': 'lightgreen', 'bypass': 'yellow', 'other':'lightpink'}
 
     # Extract node types from labels and assign colors accordingly
     node_types = {}
     for node, label in labels.items():
-        if label.startswith('sink'):
+        if label.startswith('sink') or label.startswith('exit'):
             node_types[node] = 'sink'
-        elif label.startswith('source'):
+        elif label.startswith('source') or label.startswith('entry'):
             node_types[node] = 'source'
         elif label.startswith('innode'):
             node_types[node] = 'bypass'
+        else:
+            node_types[node] = 'other'
     return node_colors, node_types
 
