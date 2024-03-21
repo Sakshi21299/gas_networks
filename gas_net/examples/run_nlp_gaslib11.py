@@ -83,4 +83,4 @@ def run_model():
     return m_steady, m_dyn
 
 if __name__ == "__main__":
-    m_steady= run_model()
+    m_steady, m_dyn= run_model()
