@@ -135,3 +135,66 @@ def graph_plot(G, node_labels=False):
    
     return 
 
+def plot_graph_with_layout(G, node_labels=False):
+    ## draw
+    # edge_colors
+    edge_colors = []
+    widths = []
+    for a in G.edges:
+        # set color
+        color = 'tab:green'
+        if 'category' in G.edges[a].keys():
+            if G.edges[a]["category"] == "pipe": 
+                color = "black"
+                width = 0.5
+            elif "valve" in G.edges[a]["category"]: 
+                color = "pink"
+                width = 4
+            elif G.edges[a]["category"] == "compressor station": 
+                color = "red"  
+                width = 4
+            else:
+                color = "black"
+                width = 0.5                  
+        edge_colors.append(color)
+        widths.append(width)
+    
+    
+    # node colors
+    node_colors = ["tab:blue" for n in G.nodes]
+    node_sizes = [5 for n in G.nodes]
+    layout = nx.kamada_kawai_layout(G)
+    
+    pos_labels, labels = offset_labels(G, pos=layout)
+    node_colors, node_types = colorcode_nodes(labels)
+    nx.draw_networkx(G, pos=layout, 
+            edge_color = edge_colors, 
+            linewidths = 4,
+            with_labels = False,
+            node_size = node_sizes,
+            node_color=[node_colors[node_types[node]] for node in G.nodes()])
+    
+    # Adjust label positions by adding the offset to the x-coordinate
+    label_positions = {node: (x + 0.05, y-0.05) for node, (x, y) in layout.items()}
+
+    
+    nx.draw_networkx_labels(G, pos=label_positions, labels={node: f'{label}\n' for node, label in labels.items()},
+                        font_size=7, font_color='black')
+
+    return 
+
+def colorcode_nodes(labels):
+    # Define node colors based on node types
+    node_colors = {'source': 'blue', 'sink': 'lightgreen', 'bypass': 'yellow'}
+
+    # Extract node types from labels and assign colors accordingly
+    node_types = {}
+    for node, label in labels.items():
+        if label.startswith('sink'):
+            node_types[node] = 'sink'
+        elif label.startswith('source'):
+            node_types[node] = 'source'
+        elif label.startswith('innode'):
+            node_types[node] = 'bypass'
+    return node_colors, node_types
+
