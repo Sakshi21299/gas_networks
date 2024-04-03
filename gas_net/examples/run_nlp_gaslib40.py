@@ -72,7 +72,12 @@ def run_model():
     for p, vol in m_dyn.Pipes_VolExtrR_interm.data():
         m_dyn.interm_p[p, vol, t0] = m_steady.interm_p[p, vol, t0]
     m_dyn.interm_p[:, :, t0].fix()
-
+    
+    #I think we need this to fix the initial state
+    #Confirm with larry 
+    # for c in m_dyn.Stations:
+    #     m_dyn.compressor_P[c, t0] = m_steady.compressor_P[c, t0]
+    # m_dyn.compressor_P[:,t0].fix()
     # solve
     ipopt = pyo.SolverFactory("ipopt")
     res_dyn = ipopt.solve(m_dyn, tee=True)
