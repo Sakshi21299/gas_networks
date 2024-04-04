@@ -13,17 +13,12 @@ def debug_gas_model(model):
     #Fix degrees of freedom to make the problem square
     for s in model.Stations:
         for t in model.Times:
-            model.compressor_beta[s, t].fix()
+            model.compressor_P[s, t].fix()
     print("degrees_of_freedom = ", degrees_of_freedom(model))
     #assert degrees_of_freedom(model) == 0
     dt = DiagnosticsToolbox(model)
     dt.report_structural_issues()
-    
-    #Unfix degrees of freedom
-    for s in model.Stations:
-        for t in model.Times:
-            model.compressor_beta[s, t].fix()
-    
+
     ipopt = pyo.SolverFactory('ipopt')
     ipopt.solve(model, tee=True)
     
