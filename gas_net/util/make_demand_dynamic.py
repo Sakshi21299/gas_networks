@@ -28,7 +28,7 @@ def dynamic_demand_calculation(m, time_length = None, extended_profile = False):
         
     dynamic_demand = {}
     for s in m.wCons:
-        if s[0].startswith('sink'):
+        if s[0].startswith('sink') or s[0].startswith('exit'):
             ss_demand = [pyo.value(m.wCons[s])]*time_length
             dynamic_demand[s[0]] = dynamic_demand_profile(ss_demand)
             if extended_profile:
