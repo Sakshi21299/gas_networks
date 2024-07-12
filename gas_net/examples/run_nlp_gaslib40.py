@@ -107,11 +107,32 @@ def run_model():
     ipopt.options["bound_push"] = 1e-6
     res_dyn = ipopt.solve(m_dyn, tee=True)
     
-    #Plot
-    plot_compressor_beta(m_dyn)
-    plot_compressor_power(m_dyn)
-    
     return m_steady, m_dyn
 
 if __name__ == "__main__":
     m_steady, m_dyn = run_model()
+    
+    #Plot
+    plot_compressor_beta(m_dyn)
+    plot_compressor_power(m_dyn)
+    
+    import numpy as np
+    import matplotlib.pyplot as plt
+    speed = {}
+    for p in m_dyn.Pipes:
+        speed[p] = []
+        for t in m_dyn.Times:
+            sum_u_at_t = 0
+            for v in m_dyn.Pipes_VolExtrC:
+                sum_u_at_t += abs(pyo.value(m_dyn.u[p, v[1], t]))
+            avg_speed_at_t = sum_u_at_t/len(m_dyn.Pipes_VolExtrC)
+            speed[p].append(avg_speed_at_t)
+    plt.figure()
+    for key in speed.keys():
+        plt.plot(speed[key], label = key)
+    plt.legend()
+    
+    #Pipe 17, 18 has high speed
+    #This doesn't happen if all the pipe diameters are set to 1
+    #and the corresponding areas are also updated
+    
