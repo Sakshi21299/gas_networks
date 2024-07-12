@@ -16,6 +16,7 @@ from gas_net.util.import_data import import_data_from_excel
 from gas_net.util.debug_model import debug_gas_model
 from gas_net.util.plotting_util.plot_dynamic_profiles import plot_compressor_beta, plot_compressor_power
 import json
+from gas_net.modelling_library.terminal import collect_css_data, css_terminal_constraints
 
 def get_data_to_build_plant_model(network_path = None, 
                                   input_path = None, 
@@ -45,6 +46,11 @@ def make_plant_and_controller_model():
     # centered around the steady state demand with a horizon of 24 hours
     m_steady, m_dyn = run_model()
     m_controller = m_dyn
+    
+    #Get cyclic steady state data from solution of the dynamic model
+    #and write terminal constraints
+    collect_css_data(m_controller, m_dyn)
+    m_controller = css_terminal_constraints(m_controller)
     
     #Make plant model 
     networkData, inputData, Options = get_data_to_build_plant_model()
@@ -80,15 +86,30 @@ def make_plant_and_controller_model():
     
     return m_controller, m_plant
 
-def load_demand_data(m, demand_data, start, stop):
-    for s in m.wCons:
-        if s[0].startswith("sink"):
-            counter = 0
-            actual_demand = demand_data[s[0]][start:stop]
-            for t in m.Times:
-                m.wCons[s[0], 0, t].fix(actual_demand[counter])
-                counter += 1
+def load_demand_data(m, demand_data, start, stop, soft_constraint = False):
+    #This function just updates the mutable parameter actual demand 
+    #and if we are not writing soft constraints on demand then fixes the demand
+    #to the actual demand value
+    for s in m.sink_node_set:
+        actual_demand = demand_data[s][start:stop]
+        for t_index, t in enumerate(m.Times, start=0):
+            m.actual_demand[s, t] = actual_demand[t_index]
+            if not soft_constraint:   
+                m.wCons[s, 0, t].fix(m.actual_demand[s, t])
+            
+def write_soft_constraints(m):
+    m.slack = pyo.Var(m.sink_node_set, m.Times, domain = pyo.Reals)
     
+    def _soft_constraint_on_demands(m, s, t):
+        m.wCons[s, 0, t].unfix()
+        return m.wCons[s, 0, t] == m.actual_demand[s, t] + m.slack[s, t]
+    m.demand_constraint_soft = pyo.Constraint(m.sink_node_set, m.Times, rule = _soft_constraint_on_demands)
+    
+    m.ObjFun.deactivate() 
+    m.obj = pyo.Objective(expr = m.ObjFun
+                          + 1e5*sum(m.slack[s, t]**2 for s in m.sink_node_set for t in m.Times))
+ 
+            
 def run_nmpc(simulation_steps = 24, 
              sample_time = 1, 
              controller_horizon = 24, 
@@ -96,15 +117,36 @@ def run_nmpc(simulation_steps = 24,
     #Get initialized controller and plant models
     m_controller,m_plant = make_plant_and_controller_model()
     
+    #Create a set for sink nodes to easily load demand profiles
+    sink_node_set = [s for s in m_controller.Nodes if s.startswith("sink")]
+    
+    m_controller.sink_node_set = pyo.Set(initialize = sink_node_set)
+    m_plant.sink_node_set = pyo.Set(initialize = sink_node_set)
+    
+    #If we need to write demand as soft constraint introduce slack variables
+    #It makes sense to make actual demand a mutable parameter if we are going to write 
+    #soft constraints since evry time in the controller we can just update the 
+    #mutable parameter 
+    m_controller.actual_demand = pyo.Param(m_controller.sink_node_set, m_controller.Times, initialize = 1, mutable = True)
+    m_plant.actual_demand = pyo.Param(m_plant.sink_node_set, m_plant.Times, initialize = 1, mutable = True)
+    
+    soft_constraint = True
+    if soft_constraint:
+        write_soft_constraints(m_controller)
+        write_soft_constraints(m_plant)
+       
     #Get extended demand data
     demand_data_controller = dynamic_demand_calculation(m_controller, extended_profile=True)
     demand_data_plant = dynamic_demand_calculation(m_controller, extended_profile=False)
-    uncertain_demand_data_plant = uncertain_demand_calculation(m_controller, demand_data_plant)
+    uncertain_demand_data_plant = uncertain_demand_calculation(m_controller, demand_data_plant, 
+                                                               uncertainty={(0,13): -1, (13, 25): -1})
     
     #Load the uncertain demand in sink 19
     #To do: This doesn't converge as is. Free some variables.
     #Can a plant simulation have DOF?
-    demand_data_plant['sink_19'] = uncertain_demand_data_plant['sink_19']
+    demand_data_plant = uncertain_demand_data_plant
+    import matplotlib.pyplot as plt
+    plt.plot(demand_data_plant['sink_12'])
     
    
     #Create dynamic model interface for controller
@@ -135,7 +177,7 @@ def run_nmpc(simulation_steps = 24,
     # simulation.
     #
     sim_data = plant_interface.get_data_at_time([sim_t0])
-
+    m_controller.slack.fix(0)
     for i in range(simulation_steps):
         print("Running controller %d th time"%i)
         # The starting point of this part of the simulation
@@ -145,16 +187,16 @@ def run_nmpc(simulation_steps = 24,
         #Load demand data into the controller and plant
         start = sim_t0
         stop = start + controller_horizon + 1
-        load_demand_data(m_controller, demand_data_controller, start, stop)
+        load_demand_data(m_controller, demand_data_controller, start, stop, soft_constraint)
         
         start = sim_t0
         stop = start + plant_horizon + 1
-        load_demand_data(m_plant, demand_data_plant, start, stop)
+        load_demand_data(m_plant, demand_data_plant, start, stop, soft_constraint)
         
         #
         # Solve controller model to get inputs
         #
-        assert degrees_of_freedom(m_controller) == 24*6
+        assert degrees_of_freedom(m_controller) == 24*6 #+ 29*25
         res = solver.solve(m_controller, tee=tee)
         pyo.assert_optimal_termination(res)
         
@@ -166,7 +208,7 @@ def run_nmpc(simulation_steps = 24,
         #
         # Solve plant model to simulate
         #
-        assert degrees_of_freedom(m_plant) == 0
+        assert degrees_of_freedom(m_plant) == 29*2
         res = solver.solve(m_plant, tee=tee)
         pyo.assert_optimal_termination(res)
         
@@ -209,3 +251,6 @@ if __name__ =="__main__":
         if str(n).startswith('sink'):
             all_nodes_p.append(m_plant.node_p[n, :])
     _plot_time_indexed_variables(sim_data, all_nodes_p, show = True)
+    
+    _plot_time_indexed_variables(sim_data, [m_plant.slack[s, :] for s in m_plant.sink_node_set])
+    
