@@ -16,7 +16,7 @@ from gas_net.util.import_data import import_data_from_excel
 from gas_net.util.debug_model import debug_gas_model
 from gas_net.util.plotting_util.plot_dynamic_profiles import plot_compressor_beta, plot_compressor_power
 import json
-from gas_net.modelling_library.terminal import collect_css_data, css_terminal_constraints
+from gas_net.modelling_library.terminal import css_terminal_constraints
 
 def get_data_to_build_plant_model(network_path = None, 
                                   input_path = None, 
@@ -49,7 +49,6 @@ def make_plant_and_controller_model():
     
     #Get cyclic steady state data from solution of the dynamic model
     #and write terminal constraints
-    collect_css_data(m_controller, m_dyn)
     m_controller = css_terminal_constraints(m_controller)
     
     #Make plant model 
@@ -97,7 +96,7 @@ def load_demand_data(m, demand_data, start, stop, soft_constraint = False):
             if not soft_constraint:   
                 m.wCons[s, 0, t].fix(m.actual_demand[s, t])
             
-def write_soft_constraints(m):
+def write_soft_constraints(m, terminal_constraints=False):
     m.slack = pyo.Var(m.sink_node_set, m.Times, domain = pyo.Reals)
     
     def _soft_constraint_on_demands(m, s, t):
@@ -106,9 +105,16 @@ def write_soft_constraints(m):
     m.demand_constraint_soft = pyo.Constraint(m.sink_node_set, m.Times, rule = _soft_constraint_on_demands)
     
     m.ObjFun.deactivate() 
-    m.obj = pyo.Objective(expr = m.ObjFun
-                          + 1e5*sum(m.slack[s, t]**2 for s in m.sink_node_set for t in m.Times))
- 
+    #This differentiation is necessary because plant model doesn't have terminal constraints
+    if terminal_constraints:
+        m.obj = pyo.Objective(expr = m.ObjFun
+                              + 1e5*sum(m.slack[s, t]**2 for s in m.sink_node_set for t in m.Times)
+                              + 1e5*sum(m.terminal_flow_slacks[p, vol]**2 for p, vol in m.Pipes_VolExtrC_interm)
+                              + 1e5*sum(m.terminal_pressure_slacks[p, vol]**2 for p, vol in m.Pipes_VolExtrR_interm))
+    else:
+        m.obj = pyo.Objective(expr = m.ObjFun
+                              + 1e5*sum(m.slack[s, t]**2 for s in m.sink_node_set for t in m.Times))
+
             
 def run_nmpc(simulation_steps = 24, 
              sample_time = 1, 
@@ -132,21 +138,29 @@ def run_nmpc(simulation_steps = 24,
     
     soft_constraint = True
     if soft_constraint:
-        write_soft_constraints(m_controller)
+        write_soft_constraints(m_controller, terminal_constraints=True)
         write_soft_constraints(m_plant)
        
     #Get extended demand data
     demand_data_controller = dynamic_demand_calculation(m_controller, extended_profile=True)
     demand_data_plant = dynamic_demand_calculation(m_controller, extended_profile=False)
     uncertain_demand_data_plant = uncertain_demand_calculation(m_controller, demand_data_plant, 
-                                                               uncertainty={(0,13): -1, (13, 25): -1})
+                                                               uncertainty={(0,13): 0.1, (13, 25): 0.1})
+    
+    import matplotlib.pyplot as plt
+    plt.plot(demand_data_plant['sink_12'], label= 'controller demand')
+    plt.plot(uncertain_demand_data_plant['sink_12'], label = 'plant demand')
+    plt.title('Demand data')
+    plt.xlabel('time (hrs)')
+    plt.ylabel('Demand (kg/s)')
+    plt.legend()
+   
     
     #Load the uncertain demand in sink 19
     #To do: This doesn't converge as is. Free some variables.
     #Can a plant simulation have DOF?
     demand_data_plant = uncertain_demand_data_plant
-    import matplotlib.pyplot as plt
-    plt.plot(demand_data_plant['sink_12'])
+    
     
    
     #Create dynamic model interface for controller
@@ -197,6 +211,7 @@ def run_nmpc(simulation_steps = 24,
         # Solve controller model to get inputs
         #
         assert degrees_of_freedom(m_controller) == 24*6 #+ 29*25
+       
         res = solver.solve(m_controller, tee=tee)
         pyo.assert_optimal_termination(res)
         
@@ -209,6 +224,7 @@ def run_nmpc(simulation_steps = 24,
         # Solve plant model to simulate
         #
         assert degrees_of_freedom(m_plant) == 29*2
+        
         res = solver.solve(m_plant, tee=tee)
         pyo.assert_optimal_termination(res)
         
