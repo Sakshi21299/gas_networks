@@ -109,8 +109,8 @@ def write_soft_constraints(m, terminal_constraints=False):
     if terminal_constraints:
         m.obj = pyo.Objective(expr = m.ObjFun
                               + 1e5*sum(m.slack[s, t]**2 for s in m.sink_node_set for t in m.Times)
-                              + 1e5*sum(m.terminal_flow_slacks[p, vol]**2 for p, vol in m.Pipes_VolExtrC_interm)
-                              + 1e5*sum(m.terminal_pressure_slacks[p, vol]**2 for p, vol in m.Pipes_VolExtrR_interm))
+                              + 1e2*sum(m.terminal_flow_slacks[p, vol]**2 for p, vol in m.Pipes_VolExtrC_interm)
+                              + 1e2*sum(m.terminal_pressure_slacks[p, vol]**2 for p, vol in m.Pipes_VolExtrR_interm))
     else:
         m.obj = pyo.Objective(expr = m.ObjFun
                               + 1e5*sum(m.slack[s, t]**2 for s in m.sink_node_set for t in m.Times))
@@ -144,8 +144,10 @@ def run_nmpc(simulation_steps = 24,
     #Get extended demand data
     demand_data_controller = dynamic_demand_calculation(m_controller, extended_profile=True)
     demand_data_plant = dynamic_demand_calculation(m_controller, extended_profile=False)
+    #Max scenario (0.1, -0.1)
+    #Min scenario (-0.1, 0.1)
     uncertain_demand_data_plant = uncertain_demand_calculation(m_controller, demand_data_plant, 
-                                                               uncertainty={(0,13): 0.1, (13, 25): 0.1})
+                                                               uncertainty={(0,13): 0, (13, 25): 0})
     
     import matplotlib.pyplot as plt
     plt.plot(demand_data_plant['sink_12'], label= 'controller demand')
@@ -192,6 +194,8 @@ def run_nmpc(simulation_steps = 24,
     #
     sim_data = plant_interface.get_data_at_time([sim_t0])
     m_controller.slack.fix(0)
+    terminal_penalty_flow = {}
+    terminal_penalty_pressure = {}
     for i in range(simulation_steps):
         print("Running controller %d th time"%i)
         # The starting point of this part of the simulation
@@ -214,6 +218,9 @@ def run_nmpc(simulation_steps = 24,
        
         res = solver.solve(m_controller, tee=tee)
         pyo.assert_optimal_termination(res)
+        #Collect terminal penalty data
+        terminal_penalty_flow[i] = pyo.value(sum(m_controller.terminal_flow_slacks[p, vol]**2 for p, vol in m_controller.Pipes_VolExtrC_interm))
+        terminal_penalty_pressure[i] = pyo.value(sum(m_controller.terminal_pressure_slacks[p, vol]**2 for p, vol in m_controller.Pipes_VolExtrR_interm))
         
         ts_data = controller_interface.get_data_at_time(sample_time)
         input_data = ts_data.extract_variables(plant_fixed_variables)
@@ -247,10 +254,10 @@ def run_nmpc(simulation_steps = 24,
         controller_interface.shift_values_by_time(sample_time)
         controller_interface.load_data(tf_data, time_points=t0_controller)
         
-    return m_plant, m_controller, sim_data
+    return m_plant, m_controller, sim_data, terminal_penalty_flow, terminal_penalty_pressure
     
 if __name__ =="__main__":
-    m_plant, m_controller, sim_data = run_nmpc()
+    m_plant, m_controller, sim_data, terminal_penalty_flow, terminal_penalty_pressure = run_nmpc()
     
     #Plot compressor power in the plant (Note: it is scaled by 1e5)
     from pyomo.contrib.mpc.examples.cstr.model import _plot_time_indexed_variables
@@ -269,4 +276,15 @@ if __name__ =="__main__":
     _plot_time_indexed_variables(sim_data, all_nodes_p, show = True)
     
     _plot_time_indexed_variables(sim_data, [m_plant.slack[s, :] for s in m_plant.sink_node_set])
+    
+    _plot_time_indexed_variables(sim_data, [m_plant.wCons[s, 0, :] for s in m_plant.sink_node_set])
+    
+    import matplotlib.pyplot as plt
+    plt.figure()
+    plt.plot(terminal_penalty_pressure.values())
+    plt.title("Total terminal pressure penalty in the controller")
+    
+    plt.figure()
+    plt.plot(terminal_penalty_flow.values())
+    plt.title("Total terminal flow penalty in the controller")
     
