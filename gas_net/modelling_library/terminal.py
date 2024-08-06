@@ -32,17 +32,20 @@ def collect_css_data(m, solved_dynamic_model, current_time):
         m.css_pressures[p, vol] = pyo.value(solved_dynamic_model.interm_p[p, vol, current_time])
             
 def css_terminal_constraints(m):
-    m.terminal_flow_slacks = pyo.Var(m.Pipes_VolExtrC_interm, domain=pyo.Reals)
-    m.terminal_pressure_slacks = pyo.Var(m.Pipes_VolExtrR_interm, domain=pyo.Reals)
+    m.terminal_flow_slacks_p = pyo.Var(m.Pipes_VolExtrC_interm, domain=pyo.NonNegativeReals)
+    m.terminal_flow_slacks_n = pyo.Var(m.Pipes_VolExtrC_interm, domain=pyo.NonPositiveReals)
+    m.terminal_pressure_slacks_p = pyo.Var(m.Pipes_VolExtrR_interm, domain=pyo.NonNegativeReals)
+    m.terminal_pressure_slacks_n = pyo.Var(m.Pipes_VolExtrR_interm, domain=pyo.NonPositiveReals)
+    
     def _terminal_flow(m, p, vol):
         tf = m.Times.last()
         t0 = m.Times.first()
-        return m.interm_w[p, vol, tf] == m.interm_w[p, vol, t0] + m.terminal_flow_slacks[p,vol]
+        return m.interm_w[p, vol, tf] == m.interm_w[p, vol, t0] + m.terminal_flow_slacks_p[p,vol] + m.terminal_flow_slacks_n[p,vol]
     m.terminal_flow = pyo.Constraint(m.Pipes_VolExtrC_interm, rule = _terminal_flow)
     
     def _terminal_pressure(m, p , vol):
         tf = m.Times.last()
         t0 = m.Times.first()
-        return m.interm_p[p, vol, tf] ==m.interm_p[p, vol, t0]+ m.terminal_pressure_slacks[p,vol]
+        return m.interm_p[p, vol, tf] ==m.interm_p[p, vol, t0]+ m.terminal_pressure_slacks_p[p,vol] + m.terminal_pressure_slacks_n[p,vol]
     m.terminal_pressure = pyo.Constraint(m.Pipes_VolExtrR_interm, rule = _terminal_pressure)
     return m
