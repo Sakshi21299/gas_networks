@@ -17,6 +17,7 @@ from gas_net.util.debug_model import debug_gas_model
 from gas_net.util.plotting_util.plot_dynamic_profiles import plot_compressor_beta, plot_compressor_power
 import json
 from gas_net.modelling_library.terminal import css_terminal_constraints
+import numpy as np
 
 def get_data_to_build_plant_model(network_path = None, 
                                   input_path = None, 
@@ -219,8 +220,8 @@ def run_nmpc(simulation_steps = 24,
         res = solver.solve(m_controller, tee=tee)
         pyo.assert_optimal_termination(res)
         #Collect terminal penalty data
-        terminal_penalty_flow[i] = pyo.value(sum(m_controller.terminal_flow_slacks[p, vol]**2 for p, vol in m_controller.Pipes_VolExtrC_interm))
-        terminal_penalty_pressure[i] = pyo.value(sum(m_controller.terminal_pressure_slacks[p, vol]**2 for p, vol in m_controller.Pipes_VolExtrR_interm))
+        terminal_penalty_flow[i] = np.sqrt(pyo.value(sum(m_controller.terminal_flow_slacks[p, vol]**2 for p, vol in m_controller.Pipes_VolExtrC_interm)))
+        terminal_penalty_pressure[i] = np.sqrt(pyo.value(sum(m_controller.terminal_pressure_slacks[p, vol]**2 for p, vol in m_controller.Pipes_VolExtrR_interm)))
         
         ts_data = controller_interface.get_data_at_time(sample_time)
         input_data = ts_data.extract_variables(plant_fixed_variables)
@@ -287,4 +288,14 @@ if __name__ =="__main__":
     plt.figure()
     plt.plot(terminal_penalty_flow.values())
     plt.title("Total terminal flow penalty in the controller")
+    
+    plt.figure()
+    demand_slack = {}
+    for s in m_plant.sink_node_set:
+        keys = m_plant.slack[s, :]
+        for i, key in enumerate(keys):
+            slack = sim_data.get_data_from_key(key)
+      
+        demand_slack[s]= np.sqrt(np.array(slack[1:])**2)
+        plt.plot(demand_slack[s])
     
