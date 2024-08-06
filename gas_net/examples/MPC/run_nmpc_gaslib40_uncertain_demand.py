@@ -97,23 +97,24 @@ def load_demand_data(m, demand_data, start, stop, soft_constraint = False):
                 m.wCons[s, 0, t].fix(m.actual_demand[s, t])
             
 def write_soft_constraints(m, terminal_constraints=False):
-    m.slack = pyo.Var(m.sink_node_set, m.Times, domain = pyo.Reals)
+    m.slack_p = pyo.Var(m.sink_node_set, m.Times, domain = pyo.NonNegativeReals)
+    m.slack_n = pyo.Var(m.sink_node_set, m.Times, domain = pyo.NonPositiveReals)
     
     def _soft_constraint_on_demands(m, s, t):
         m.wCons[s, 0, t].unfix()
-        return m.wCons[s, 0, t] == m.actual_demand[s, t] + m.slack[s, t]
+        return m.wCons[s, 0, t] == m.actual_demand[s, t] + m.slack_p[s, t] + m.slack_n[s, t]
     m.demand_constraint_soft = pyo.Constraint(m.sink_node_set, m.Times, rule = _soft_constraint_on_demands)
     
     m.ObjFun.deactivate() 
     #This differentiation is necessary because plant model doesn't have terminal constraints
     if terminal_constraints:
         m.obj = pyo.Objective(expr = m.ObjFun
-                              + 1e5*sum(m.slack[s, t]**2 for s in m.sink_node_set for t in m.Times)
-                              + 1e2*sum(m.terminal_flow_slacks[p, vol]**2 for p, vol in m.Pipes_VolExtrC_interm)
-                              + 1e2*sum(m.terminal_pressure_slacks[p, vol]**2 for p, vol in m.Pipes_VolExtrR_interm))
+                              + sum(m.slack_p[s, t] - m.slack_n[s, t] for s in m.sink_node_set for t in m.Times)
+                              + sum(m.terminal_flow_slacks_p[p, vol] - m.terminal_flow_slacks_n[p, vol] for p, vol in m.Pipes_VolExtrC_interm)
+                              + sum(m.terminal_pressure_slacks_p[p, vol] - m.terminal_pressure_slacks_n[p, vol] for p, vol in m.Pipes_VolExtrR_interm))
     else:
         m.obj = pyo.Objective(expr = m.ObjFun
-                              + 1e5*sum(m.slack[s, t]**2 for s in m.sink_node_set for t in m.Times))
+                              + sum(m.slack_p[s, t] - m.slack_n[s, t] for s in m.sink_node_set for t in m.Times))
 
             
 def run_nmpc(simulation_steps = 24, 
@@ -147,7 +148,7 @@ def run_nmpc(simulation_steps = 24,
     #Max scenario (0.1, -0.1)
     #Min scenario (-0.1, 0.1)
     uncertain_demand_data_plant = uncertain_demand_calculation(m_controller, demand_data_plant, 
-                                                               uncertainty={(0,13): 0, (13, 25): 0})
+                                                               uncertainty={(0,13): 0.1, (13, 25): -0.1})
     
     import matplotlib.pyplot as plt
     plt.plot(demand_data_plant['sink_12'], label= 'controller demand')
@@ -156,7 +157,7 @@ def run_nmpc(simulation_steps = 24,
     plt.xlabel('time (hrs)')
     plt.ylabel('Demand (kg/s)')
     plt.legend()
-   
+     
     
     #Load the uncertain demand in sink 19
     #To do: This doesn't converge as is. Free some variables.
@@ -164,7 +165,7 @@ def run_nmpc(simulation_steps = 24,
     demand_data_plant = uncertain_demand_data_plant
     
     
-   
+    
     #Create dynamic model interface for controller
     controller_interface = mpc.DynamicModelInterface(m_controller, m_controller.Times)
     t0_controller = m_controller.Times.first()
@@ -193,7 +194,8 @@ def run_nmpc(simulation_steps = 24,
     # simulation.
     #
     sim_data = plant_interface.get_data_at_time([sim_t0])
-    m_controller.slack.fix(0)
+    m_controller.slack_p.fix(0)
+    m_controller.slack_n.fix(0)
     terminal_penalty_flow = {}
     terminal_penalty_pressure = {}
     for i in range(simulation_steps):
@@ -214,13 +216,13 @@ def run_nmpc(simulation_steps = 24,
         #
         # Solve controller model to get inputs
         #
-        assert degrees_of_freedom(m_controller) == 24*6 #+ 29*25
+        #assert degrees_of_freedom(m_controller) == 24*6 #+ 29*25
        
         res = solver.solve(m_controller, tee=tee)
         pyo.assert_optimal_termination(res)
         #Collect terminal penalty data
-        terminal_penalty_flow[i] = pyo.value(sum(m_controller.terminal_flow_slacks[p, vol]**2 for p, vol in m_controller.Pipes_VolExtrC_interm))
-        terminal_penalty_pressure[i] = pyo.value(sum(m_controller.terminal_pressure_slacks[p, vol]**2 for p, vol in m_controller.Pipes_VolExtrR_interm))
+        terminal_penalty_flow[i] = pyo.value(sum(m_controller.terminal_flow_slacks_p[p, vol]-m_controller.terminal_flow_slacks_n[p, vol] for p, vol in m_controller.Pipes_VolExtrC_interm))
+        terminal_penalty_pressure[i] = pyo.value(sum(m_controller.terminal_pressure_slacks_p[p, vol] - m_controller.terminal_pressure_slacks_n[p, vol] for p, vol in m_controller.Pipes_VolExtrR_interm))
         
         ts_data = controller_interface.get_data_at_time(sample_time)
         input_data = ts_data.extract_variables(plant_fixed_variables)
@@ -230,7 +232,7 @@ def run_nmpc(simulation_steps = 24,
         #
         # Solve plant model to simulate
         #
-        assert degrees_of_freedom(m_plant) == 29*2
+        #assert degrees_of_freedom(m_plant) == 29*2
         
         res = solver.solve(m_plant, tee=tee)
         pyo.assert_optimal_termination(res)
@@ -275,7 +277,7 @@ if __name__ =="__main__":
             all_nodes_p.append(m_plant.node_p[n, :])
     _plot_time_indexed_variables(sim_data, all_nodes_p, show = True)
     
-    _plot_time_indexed_variables(sim_data, [m_plant.slack[s, :] for s in m_plant.sink_node_set])
+    _plot_time_indexed_variables(sim_data, [m_plant.slack_p[s, :] for s in m_plant.sink_node_set])
     
     _plot_time_indexed_variables(sim_data, [m_plant.wCons[s, 0, :] for s in m_plant.sink_node_set])
     
@@ -288,3 +290,15 @@ if __name__ =="__main__":
     plt.plot(terminal_penalty_flow.values())
     plt.title("Total terminal flow penalty in the controller")
     
+    import numpy as np
+    plt.figure()
+    demand_slack = {}
+    for s in m_plant.sink_node_set:
+        keys = m_plant.slack_p[s, :]
+        for i, key in enumerate(keys):
+            slack_p = sim_data.get_data_from_key(key)
+        keys = m_plant.slack_n[s, :]
+        for i, key in enumerate(keys):
+            slack_n = sim_data.get_data_from_key(key)
+        demand_slack[s]= np.array(slack_p[1:]) - np.array(slack_n[1:])
+        plt.plot(demand_slack[s])
