@@ -167,6 +167,8 @@ def plot_graph_with_layout(G, node_labels=False):
     
     pos_labels, labels = offset_labels(G, pos=layout)
     node_colors, node_types = colorcode_nodes(labels)
+    
+    pl.figure()
     nx.draw_networkx(G, pos=layout, 
             edge_color = edge_colors, 
             linewidths = 4,
@@ -177,15 +179,15 @@ def plot_graph_with_layout(G, node_labels=False):
     # Adjust label positions by adding the offset to the x-coordinate
     label_positions = {node: (x + 0.05, y-0.05) for node, (x, y) in layout.items()}
 
-    
-    nx.draw_networkx_labels(G, pos=label_positions, labels={node: f'{label}\n' for node, label in labels.items()},
-                        font_size=7, font_color='black')
-
+    if node_labels:
+        nx.draw_networkx_labels(G, pos=label_positions, labels={node: f'{label}\n' for node, label in labels.items()},
+                            font_size=7, font_color='black')
+    pl.savefig("gaslib40_schematic.svg")
     return 
 
 def colorcode_nodes(labels):
     # Define node colors based on node types
-    node_colors = {'source': 'blue', 'sink': 'lightgreen', 'bypass': 'yellow', 'other':'lightpink'}
+    node_colors = {'source': 'blue', 'sink': 'green', 'bypass': 'yellow', 'other':'lightpink'}
 
     # Extract node types from labels and assign colors accordingly
     node_types = {}
@@ -200,3 +202,12 @@ def colorcode_nodes(labels):
             node_types[node] = 'other'
     return node_colors, node_types
 
+if __name__ == "__main__":
+    from gas_net.util.import_data import import_data_from_excel
+    network_data_path = r'C:\\Users\\ssnaik\\Biegler\\gas_networks_italy\\gas_networks\\gas_net\\data\\data_files\\Gaslib_40\\networkData.xlsx'
+    input_data_path = r'C:\\Users\\ssnaik\\Biegler\\gas_networks_italy\\gas_networks\\gas_net\\data\\data_files\\Gaslib_40\\inputData.xlsx'
+
+    #Load network and input data
+    networkData, inputData = import_data_from_excel(network_data_path, input_data_path)
+    G = graph_construction(networkData)
+    plot_graph_with_layout(G)
