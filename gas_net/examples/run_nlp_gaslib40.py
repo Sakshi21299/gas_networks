@@ -7,18 +7,24 @@ Created on Wed Mar 20 18:17:30 2024
 
 from gas_net.util.import_data import import_data_from_excel
 from gas_net.util.debug_model import debug_gas_model
-from gas_net.util.make_demand_dynamic import dynamic_demand_calculation
+from gas_net.util.make_demand_dynamic import dynamic_demand_calculation, uncertain_demand_calculation
 from gas_net.model_nlp import buildNonLinearModel
 from gas_net.modelling_library.fix_and_init_vars import init_network_default
 from gas_net.util.plotting_util.plot_dynamic_profiles import plot_compressor_beta, plot_compressor_power
+from gas_net.modelling_library.terminal import css_terminal_constraints_each_point, css_terminal_constraints
 import json
 import pyomo.environ as pyo
 
-def run_model():
-    network_data_path = r'C:\\Users\\ssnaik\\Biegler\\gas_networks_italy\\gas_networks\\gas_net\\data\\data_files\\Gaslib_40\\networkData.xlsx'
-    input_data_path = r'C:\\Users\\ssnaik\\Biegler\\gas_networks_italy\\gas_networks\\gas_net\\data\\data_files\\Gaslib_40\\inputData.xlsx'
-    options_data_path = r'C:\Users\ssnaik\Biegler\gas_networks_italy\gas_networks\gas_net\data\Options.json'
-    
+def run_model(horizon = 24, num_time_periods= 1, network_data_path = None, input_data_path = None, options_data_path = None, ocss_file_path = None,
+              periodic_constraints = False, calculating_css = False, uncertainty = None):
+    if network_data_path is None:
+        network_data_path = r'C:\\Users\\ssnaik\\Biegler\\gas_networks_italy\\gas_networks\\gas_net\\data\\data_files\\Gaslib_40\\networkData.xlsx'
+    if input_data_path is None:
+        input_data_path = r'C:\\Users\\ssnaik\\Biegler\\gas_networks_italy\\gas_networks\\gas_net\\data\\data_files\\Gaslib_40\\inputData.xlsx'
+    if options_data_path is None:
+        options_data_path = r'C:\Users\ssnaik\Biegler\gas_networks_italy\gas_networks\gas_net\data\Options.json'
+    if ocss_file_path is None:
+        ocss_file_path = r"C:\Users\ssnaik\Biegler\gas_networks_italy\gas_networks\gas_net\results\optimal_css_24hrs.xlsx"
     #Load network and input data
     networkData, inputData = import_data_from_excel(network_data_path, input_data_path)
     
@@ -56,7 +62,7 @@ def run_model():
     #
     
     Options['dynamic']=True
-    Options['T']=24
+    Options['T']=horizon
     
     m_dyn = buildNonLinearModel(
             networkData, inputData, Options)
@@ -68,7 +74,7 @@ def run_model():
     m_dyn.pSource["source_1", :].fix()
     m_dyn.pSource["source_2", :].fix()
     m_dyn.wSource["source_3", :].fix()
-
+    
     # fix initial state = to steady state
     t0 = m_dyn.Times.first()
     for p, vol in m_dyn.Pipes_VolExtrR_interm.data():
@@ -90,7 +96,10 @@ def run_model():
         debug_gas_model(m_dyn)
     
     #Load dynamic demand profile
-    demand_profiles = dynamic_demand_calculation(m_dyn)
+    demand_profiles = dynamic_demand_calculation(m_dyn, num_time_periods=num_time_periods)
+    if uncertainty is not None:
+        demand_profiles = uncertain_demand_calculation(m_dyn, demand_profiles, uncertainty)
+        
     for s in m_dyn.wCons:
         if s[0].startswith("sink"):
             counter = 0
@@ -100,17 +109,34 @@ def run_model():
     
     #Increase UB on compressor beta
     m_dyn.compressor_beta["compressorStation_1", :].setub(4)
+    #Add periodic terminal constraint
     
-    # solve
-    ipopt = pyo.SolverFactory("ipopt")
+    if calculating_css:
+        #If we are not calculating css then the initial state of the plant hould not be unfixed. 
+        m_dyn.interm_p[:, :, t0].unfix()
+        m_dyn.compressor_P[:, t0].unfix()
+        
+    if periodic_constraints:
+        
+        m_dyn = css_terminal_constraints(m_dyn, num_time_periods= num_time_periods, horizon=horizon, ocss_file_path = ocss_file_path)
+        ipopt.options["tol"] = 1e-5
+        
+    from idaes.core.util.model_statistics import degrees_of_freedom
+    print(degrees_of_freedom(m_dyn))
+    
     ipopt.options["mu_init"] = 1e-6
     ipopt.options["bound_push"] = 1e-6
     res_dyn = ipopt.solve(m_dyn, tee=True)
-    
+    pyo.assert_optimal_termination(res_dyn)
     return m_steady, m_dyn
 
 if __name__ == "__main__":
-    m_steady, m_dyn = run_model()
+    input_data_path = r'C:\\Users\\ssnaik\\Biegler\\gas_networks_italy\\gas_networks\\gas_net\\data\\data_files\\Gaslib_40\\inputData_longer_horizon.xlsx'
+    network_data_path = r'C:\\Users\\ssnaik\\Biegler\\gas_networks_italy\\gas_networks\\gas_net\\data\\data_files\\Gaslib_40\\networkData.xlsx'
+    options_data_path = r'C:\Users\ssnaik\Biegler\gas_networks_italy\gas_networks\gas_net\data\Options.json'
+    ocss_file_path = r"C:\Users\ssnaik\Biegler\gas_networks_italy\gas_networks\gas_net\results\optimal_css_24hrs_extended.xlsx"
+    
+    m_steady, m_dyn = run_model(horizon = 72, num_time_periods=3, input_data_path=input_data_path, ocss_file_path = ocss_file_path, network_data_path = network_data_path, options_data_path = options_data_path, periodic_constraints=True)
     
     #Plot
     plot_compressor_beta(m_dyn)
