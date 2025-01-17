@@ -335,4 +335,4 @@ if __name__ =="__main__":
                         "wSource": [m_plant.wSource[s, :] for s in m_plant.NodesSources],
                         "pSource": [m_plant.pSource[s, :] for s in m_plant.NodesSources]
                         }
-    write_data_to_excel(sim_data, m_plant, sheets_keys_dict, "enmpc_periodic_no_stability_72hrs_each_point.xlsx", controller_1_lyapunov=controller_lyapunov_function)
+    write_data_to_excel(sim_data, m_plant, sheets_keys_dict, "final_paper_enmpc_explicit_terminal_each_point_stability_72hrs.xlsx", controller_1_lyapunov=controller_lyapunov_function)
