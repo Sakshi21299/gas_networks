@@ -117,10 +117,10 @@ def css_terminal_constraints_each_point(m, num_time_periods = 1, horizon = 24, o
     K = int(horizon/N)
     m.last_period = pyo.Set(initialize = [t for t in m.Times if t >= (N-1)*K and t <= N*K])
 
-    # def _terminal_pressure(m, p , vol, t):
-    #     return m.interm_p[p, vol, t] ==m.interm_p_ocss[p, vol, t]
+    def _terminal_pressure(m, p , vol):
+        return m.interm_p[p, vol, (N-1)*K] ==m.interm_p_ocss[p, vol, 0]
         
-    # m.terminal_pressure = pyo.Constraint(m.Pipes_VolExtrR_interm, m.last_period, rule = _terminal_pressure)
+    m.terminal_pressure = pyo.Constraint(m.Pipes_VolExtrR_interm, rule = _terminal_pressure)
     
     def _terminal_controls(m, c, t):
         return m.compressor_P_ocss[c, t] == m.compressor_P[c, t]        
