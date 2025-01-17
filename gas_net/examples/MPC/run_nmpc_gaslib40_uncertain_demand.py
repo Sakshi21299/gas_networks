@@ -19,14 +19,14 @@ import json
 from gas_net.modelling_library.terminal import css_terminal_constraints
 import numpy as np
 
-def get_data_to_build_plant_model(network_path = None, 
-                                  input_path = None, 
-                                  options_path = None):
-    if network_path is None:
+def get_data_to_build_plant_model(network_data_path = None, 
+                                  input_data_path = None, 
+                                  options_data_path = None):
+    if network_data_path is None:
         network_data_path = r'C:\\Users\\ssnaik\\Biegler\\gas_networks_italy\\gas_networks\\gas_net\\data\\data_files\\Gaslib_40\\networkData.xlsx'
-    if input_path is None:
+    if input_data_path is None:
         input_data_path = r'C:\\Users\\ssnaik\\Biegler\\gas_networks_italy\\gas_networks\\gas_net\\data\\data_files\\Gaslib_40\\inputData.xlsx'
-    if options_path is None:
+    if options_data_path is None:
         options_data_path = r'C:\Users\ssnaik\Biegler\gas_networks_italy\gas_networks\gas_net\data\Options.json'
     
     #Load network and input data
@@ -109,9 +109,9 @@ def write_soft_constraints(m, terminal_constraints=False):
     #This differentiation is necessary because plant model doesn't have terminal constraints
     if terminal_constraints:
         m.obj = pyo.Objective(expr = m.ObjFun
-                              + 1e5*sum(m.slack[s, t]**2 for s in m.sink_node_set for t in m.Times)
-                              + 1e2*sum(m.terminal_flow_slacks[p, vol]**2 for p, vol in m.Pipes_VolExtrC_interm)
-                              + 1e2*sum(m.terminal_pressure_slacks[p, vol]**2 for p, vol in m.Pipes_VolExtrR_interm))
+                              + 1e3*sum(m.slack[s, t]**2 for s in m.sink_node_set for t in m.Times)
+                              + 1e1*sum(m.terminal_flow_slacks[p, vol]**2 for p, vol in m.Pipes_VolExtrC_interm)
+                              + 1e1*sum(m.terminal_pressure_slacks[p, vol]**2 for p, vol in m.Pipes_VolExtrR_interm))
     else:
         m.obj = pyo.Objective(expr = m.ObjFun
                               + 1e5*sum(m.slack[s, t]**2 for s in m.sink_node_set for t in m.Times))
@@ -148,7 +148,7 @@ def run_nmpc(simulation_steps = 24,
     #Max scenario (0.1, -0.1)
     #Min scenario (-0.1, 0.1)
     uncertain_demand_data_plant = uncertain_demand_calculation(m_controller, demand_data_plant, 
-                                                               uncertainty={(0,13): 0, (13, 25): 0})
+                                                               uncertainty={(0,13): 0.1, (13, 25): -0.1})
     
     import matplotlib.pyplot as plt
     plt.plot(demand_data_plant['sink_12'], label= 'controller demand')
@@ -194,7 +194,7 @@ def run_nmpc(simulation_steps = 24,
     # simulation.
     #
     sim_data = plant_interface.get_data_at_time([sim_t0])
-    m_controller.slack.fix(0)
+    #m_controller.slack.fix(0)
     terminal_penalty_flow = {}
     terminal_penalty_pressure = {}
     for i in range(simulation_steps):
@@ -215,7 +215,7 @@ def run_nmpc(simulation_steps = 24,
         #
         # Solve controller model to get inputs
         #
-        assert degrees_of_freedom(m_controller) == 24*6 #+ 29*25
+        #assert degrees_of_freedom(m_controller) == 24*6 #+ 29*25
        
         res = solver.solve(m_controller, tee=tee)
         pyo.assert_optimal_termination(res)
@@ -231,7 +231,7 @@ def run_nmpc(simulation_steps = 24,
         #
         # Solve plant model to simulate
         #
-        assert degrees_of_freedom(m_plant) == 29*2
+        #assert degrees_of_freedom(m_plant) == 29*2
         
         res = solver.solve(m_plant, tee=tee)
         pyo.assert_optimal_termination(res)
@@ -299,3 +299,13 @@ if __name__ =="__main__":
         demand_slack[s]= np.sqrt(np.array(slack[1:])**2)
         plt.plot(demand_slack[s])
     
+    #Calculate total power consumed in plant
+    keys = [m_plant.compressor_P[s, :] for s in m_plant.Stations]
+    compressor_power = {}
+    for i, key in enumerate(keys):
+        compressor_power[i] = sum(sim_data.get_data_from_key(key))
+    total_power = sum(compressor_power[i] for i in compressor_power.keys())
+    
+    from gas_net.util.write_data_to_excel import write_data_to_excel
+    sheets_keys_dict = {"compressor power": [m_plant.compressor_P[s, :] for s in m_plant.Stations], "compressor beta": [m_plant.compressor_beta[s, :] for s in m_plant.Stations], "wCons": [m_plant.wCons[s, 0, :] for s in m_plant.sink_node_set], "demand slacks": [m_plant.slack[s, :] for s in m_plant.sink_node_set], "node pressure": all_nodes_p}
+    write_data_to_excel(sim_data, m_plant, sheets_keys_dict, "multistage_min_scenario.xlsx", terminal_penalty_pressure, terminal_penalty_flow)
