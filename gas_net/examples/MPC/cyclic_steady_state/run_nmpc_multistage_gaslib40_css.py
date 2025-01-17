@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+  # -*- coding: utf-8 -*-
 """
 Created on Mon Apr 29 11:34:39 2024
 
@@ -18,6 +18,7 @@ from gas_net.util.plotting_util.plot_dynamic_profiles import plot_compressor_bet
 import json
 import numpy as np
 from gas_net.modelling_library.stability import apply_stability_constraint
+from gas_net.util.write_data_to_excel import write_data_to_excel
 
 def get_data_to_build_plant_model(network_data_path = None, 
                                   input_data_path = None, 
@@ -135,8 +136,10 @@ def write_multistage_enmpc_stability_constraint(m):
     m.lyapunov_function_definition_multistage = pyo.Constraint(rule = _lyapunov_function_definition_multistage)
     
     def _stability_con_multistage(m):
-        return 1/3*(m.multistage_lyapunov_function_current - m.multistage_lyapunov_function_prev) <= -m.multistage_tracking_cost_plant_prev
+        m.stability_slack = pyo.Var(initialize = 0, domain = pyo.Reals)
+        return 1/3*(m.multistage_lyapunov_function_current - m.multistage_lyapunov_function_prev) <= -m.multistage_tracking_cost_plant_prev + m.stability_slack
     m.multistage_stability_con = pyo.Constraint(rule = _stability_con_multistage)
+    m.obj = pyo.Objective(expr = m.obj + 1e-3*m.stability_slack**2)
     return m 
 
 def tracking_objective(m):
@@ -150,6 +153,17 @@ def tracking_objective(m):
                           )
     return m
 
+def plot_power_multistage(m, label ="no label"):
+    import matplotlib.pyplot as plt
+    power = []
+    for t in m.Times:
+        power.append(sum(pyo.value(m.compressor_P[c, t]) for c in m.Stations))
+    
+    plt.plot(power, label = label)
+    plt.xlabel("Time (hrs)")
+    plt.ylabel("Compressor Power (kWh)")
+    plt.legend()
+    
 def run_nmpc(simulation_steps = 24, 
              sample_time = 1, 
              controller_horizon = 24, 
@@ -344,6 +358,10 @@ def run_nmpc(simulation_steps = 24,
     m.controller_3.stability_constraint.deactivate()
     m = write_multistage_enmpc_stability_constraint(m)
     
+    #Test this -- Does the multistage ENMPC run if you don't have the stability constraint and 
+    # Set the last period explicitly to OCSS?
+    #m.multistage_stability_con.deactivate()
+    
     for i in range(simulation_steps):
         print("Running controller %d th time"%i)
         # The starting point of this part of the simulation
@@ -410,18 +428,17 @@ def run_nmpc(simulation_steps = 24,
         # Update the stability constraint parameters
         #
         controller_branches = [m.controller_1, m.controller_2, m.controller_3]
+        plant_tracking_cost = 0
         for controller_model in controller_branches:
             controller_model.lyapunov_function_prev = pyo.value(controller_model.lyapunov_function_current)
             
             #Here it doesn't matter which sink node demand we look at since all sink nodes have the same demand
-            if pyo.value(m_plant.wCons['sink_9', 0 , 1]) == pyo.value(controller_model.wCons['sink_9', 0, 1]):
-                m.multistage_tracking_cost_plant_prev = pyo.value(sum((m_plant.compressor_P[s, 1.0] - controller_model.compressor_P_ocss[s, 1.0])**2 
+            plant_tracking_cost +=  pyo.value(sum((m_plant.compressor_P[s, 1.0] - controller_model.compressor_P_ocss[s, 1.0])**2 
                                                                       for s in controller_model.Stations) + 
                                                                   sum((m_plant.interm_p[p, vol, 1.0] - controller_model.interm_p_ocss[p, vol, 1.0])**2 
                                                                       for p, vol in controller_model.Pipes_VolExtrR_interm))
-            else:
-                print("Plant demand is not on any branch")
-        
+        m.multistage_tracking_cost_plant_prev = 1/3*(plant_tracking_cost)
+            
         m.multistage_lyapunov_function_prev = pyo.value(sum(controller_model.lyapunov_function_prev for controller_model in controller_branches))
         
         controller_1_lyapunov_function[sim_t0] = pyo.value(m.controller_1.lyapunov_function_current)
@@ -450,7 +467,30 @@ def run_nmpc(simulation_steps = 24,
             [controller_model.compressor_P_ocss[s, N*K].fix(controller_model.compressor_P_ocss[s, (N-1)*K]) for s in controller_model.Stations]
             [controller_model.interm_p_ocss[p, vol, N*K].fix(controller_model.interm_p_ocss[p, vol, (N-1)*K]) for p, vol in controller_model.Pipes_VolExtrR_interm]       
         
+        #All pressure variables at demand nodes
+        all_nodes_p = []
+        for n in m_plant.Nodes:
+            if str(n).startswith('sink'):
+                all_nodes_p.append(m_plant.node_p[n, :])
         
+        sheets_keys_dict = {"compressor power": [m_plant.compressor_P[s, :] for s in m_plant.Stations], 
+                           "compressor beta": [m_plant.compressor_beta[s, :] for s in m_plant.Stations], 
+                           "wCons": [m_plant.wCons[s, 0, :] for s in m_plant.Nodes if str(s).startswith('sink')], 
+                           "node pressure": all_nodes_p, 
+                           "interm_w": [m_plant.interm_w[p, vol, :] for p, vol in m_plant.Pipes_VolExtrC_interm],
+                           "interm_p": [m_plant.interm_p[p, vol, :] for p, vol in m_plant.Pipes_VolExtrR_interm],
+                           "wSource": [m_plant.wSource[s, :] for s in m_plant.NodesSources],
+                           "pSource": [m_plant.pSource[s, :] for s in m_plant.NodesSources]
+                           }
+        write_data_to_excel(sim_data, m_plant, sheets_keys_dict, "enmpc_multistage_gaslib40_72hrs_random_scenario_explicit_terminal_constraints_avg_stability.xlsx",
+                            controller_1_lyapunov=controller_1_lyapunov_function,
+                            controller_2_lyapunov=controller_2_lyapunov_function,
+                            controller_3_lyapunov=controller_3_lyapunov_function)
+        plt.figure()
+        plot_power_multistage(m.controller_1, label ="Min scenario")
+        plot_power_multistage(m.controller_2, label ="Nom scenario")
+        plot_power_multistage(m.controller_3, label ="Max scenario")
+        plt.show()
     return m_plant, m, sim_data, controller_1_lyapunov_function, controller_2_lyapunov_function, controller_3_lyapunov_function
     
 if __name__ =="__main__":
@@ -492,6 +532,21 @@ if __name__ =="__main__":
     
     _plot_time_indexed_variables(sim_data, [m_plant.wCons[s, 0, :] for s in m_plant.sink_node_set])
     
+    from gas_net.util.write_data_to_excel import write_data_to_excel
+    sheets_keys_dict = {"compressor power": [m_plant.compressor_P[s, :] for s in m_plant.Stations], 
+                       "compressor beta": [m_plant.compressor_beta[s, :] for s in m_plant.Stations], 
+                       "wCons": [m_plant.wCons[s, 0, :] for s in m_plant.Nodes if str(s).startswith('sink')], 
+                       "node pressure": all_nodes_p, 
+                       "interm_w": [m_plant.interm_w[p, vol, :] for p, vol in m_plant.Pipes_VolExtrC_interm],
+                       "interm_p": [m_plant.interm_p[p, vol, :] for p, vol in m_plant.Pipes_VolExtrR_interm],
+                       "wSource": [m_plant.wSource[s, :] for s in m_plant.NodesSources],
+                       "pSource": [m_plant.pSource[s, :] for s in m_plant.NodesSources]
+                       }
+    write_data_to_excel(sim_data, m_plant, sheets_keys_dict, "enmpc_multistage_gaslib40_72hrs_random_scenario_explicit_terminal_constraints_avg_stability.xlsx",
+                        controller_1_lyapunov=controller_1_lyapunov_function,
+                        controller_2_lyapunov=controller_2_lyapunov_function,
+                        controller_3_lyapunov=controller_3_lyapunov_function)
+    
     # import matplotlib.pyplot as plt
     # plt.figure()
     # demand_slack = {}
@@ -503,17 +558,3 @@ if __name__ =="__main__":
     #     demand_slack[s]= np.sqrt(np.array(slack[1:])**2)
     #     plt.plot(demand_slack[s])
     
-    from gas_net.util.write_data_to_excel import write_data_to_excel
-    sheets_keys_dict = {"compressor power": [m_plant.compressor_P[s, :] for s in m_plant.Stations], 
-                       "compressor beta": [m_plant.compressor_beta[s, :] for s in m_plant.Stations], 
-                       "wCons": [m_plant.wCons[s, 0, :] for s in m_plant.Nodes if str(s).startswith('sink')], 
-                       "node pressure": all_nodes_p, 
-                       "interm_w": [m_plant.interm_w[p, vol, :] for p, vol in m_plant.Pipes_VolExtrC_interm],
-                       "interm_p": [m_plant.interm_p[p, vol, :] for p, vol in m_plant.Pipes_VolExtrR_interm],
-                       "wSource": [m_plant.wSource[s, :] for s in m_plant.NodesSources],
-                       "pSource": [m_plant.pSource[s, :] for s in m_plant.NodesSources]
-                       }
-    write_data_to_excel(sim_data, m_plant, sheets_keys_dict, "enmpc_multistage_gaslib40_72hrs_max_scenario.xlsx",
-                        controller_1_lyapunov=controller_1_lyapunov_function,
-                        controller_2_lyapunov=controller_2_lyapunov_function,
-                        controller_3_lyapunov=controller_3_lyapunov_function)
