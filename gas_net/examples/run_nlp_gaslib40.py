@@ -118,7 +118,7 @@ def run_model(horizon = 24, num_time_periods= 1, network_data_path = None, input
         
     if periodic_constraints:
         
-        m_dyn = css_terminal_constraints(m_dyn, num_time_periods= num_time_periods, horizon=horizon, ocss_file_path = ocss_file_path)
+        m_dyn = css_terminal_constraints_each_point(m_dyn, num_time_periods= num_time_periods, horizon=horizon, ocss_file_path = ocss_file_path)
         ipopt.options["tol"] = 1e-5
         
     from idaes.core.util.model_statistics import degrees_of_freedom
