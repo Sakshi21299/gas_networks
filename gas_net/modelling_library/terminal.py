@@ -58,8 +58,7 @@ def load_css(m_controller, ocss_file_path):
     m_controller.wSource_ocss.fix()
     m_controller.pSource_ocss.fix()
             
-def css_terminal_constraints(m, num_time_periods = 1, horizon = 24, ocss_file_path = None):    
-    load_css(m, ocss_file_path)
+def css_terminal_constraints(m, num_time_periods = 1, horizon = 24):    
     
     N = num_time_periods
     K = int(horizon/N)
@@ -82,11 +81,11 @@ def css_terminal_constraints(m, num_time_periods = 1, horizon = 24, ocss_file_pa
         
     m.terminal_pressure = pyo.Constraint(m.Pipes_VolExtrR_interm, rule = _terminal_pressure)
     
-    def _terminal_source_pressure(m, s):
-        tf = N*K
-        t0 = (N-1)*K
-        return m.pSource['source_3', tf] ==m.pSource['source_3', t0]
-    m.terminal_source_pressure = pyo.Constraint(rule = _terminal_source_pressure)
+    # def _terminal_source_pressure(m, s):
+    #     tf = N*K
+    #     t0 = (N-1)*K
+    #     return m.pSource['source_3', tf] ==m.pSource['source_3', t0]
+    # m.terminal_source_pressure = pyo.Constraint(rule = _terminal_source_pressure)
     
     # def _terminal_pressure_css(m, p , vol):
     #     t0 = (N-1)*K
