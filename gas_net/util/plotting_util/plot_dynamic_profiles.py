@@ -32,5 +32,32 @@ def plot_compressor_power(m):
     plt.ylabel("Compressor Power (kWh)")
     plt.legend()
         
+def plot_sink_flow(m):
+    plt.figure()
+    sink_flow = {}
+    for s in m.Nodes:
+        if s.startswith('sink') or s.startswith('exit'):
+            sink_flow[s] = []
+            for t in m.Times:
+                sink_flow[s].append(pyo.value(m.wCons[s, 0, t]))
         
+            plt.plot(sink_flow[s], label = s)
+    plt.xlabel("Time (hrs)")
+    plt.ylabel("Sink flow (kg/s)")
+    plt.legend()    
     
+def plot_pressures(m):
+    plt.figure()
+    pressure = {}
+    for s in m.Nodes:
+        if not s.startswith('source'):
+            pressure[s] = []
+            for t in m.Times:
+                pressure[s].append(pyo.value(m.node_p[s, t]))
+            
+            plt.plot(pressure[s], label = s)
+            
+    plt.xlabel('time(hrs')
+    plt.ylabel('Pressure')
+    plt.legend()
+                
