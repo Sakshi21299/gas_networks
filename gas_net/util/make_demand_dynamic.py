@@ -10,7 +10,7 @@ import pyomo.environ as pyo
 
 def dynamic_demand_profile(ss_demand, num_time_periods = 1, epsilon = 0):
     #amplitude = 1/20 #Original amplitude set for all results
-    amplitude = 1/20
+    amplitude = 1/5
     
     time_length = len(ss_demand)
     x = np.linspace(0, 2* num_time_periods*np.pi, time_length)
@@ -21,7 +21,7 @@ def dynamic_demand_profile(ss_demand, num_time_periods = 1, epsilon = 0):
 def dynamic_demand_profile_extended(dynamic_demand):
     dynamic_demand1 = dynamic_demand
     dynamic_demand2 = dynamic_demand[1:]
-    
+
     dynamic_demand_extended = np.concatenate((dynamic_demand1, dynamic_demand2))
     return dynamic_demand_extended
     
@@ -32,7 +32,7 @@ def dynamic_demand_calculation(m, num_time_periods = 1, time_length = None, exte
         
     dynamic_demand = {}
     for s in m.wCons:
-        if s[0].startswith('sink'):
+        if s[0].startswith('sink') or s[0].startswith('exit'):
             ss_demand = [pyo.value(m.wCons[s])]*time_length
             dynamic_demand[s[0]] = dynamic_demand_profile(ss_demand,  num_time_periods, epsilon = epsilon)
             if extended_profile:
@@ -42,7 +42,7 @@ def dynamic_demand_calculation(m, num_time_periods = 1, time_length = None, exte
 def uncertain_demand_calculation(m, dynamic_demand, uncertainty={(0,13): -0.1, (13, 25): -0.1}):
     uncertain_demand = {}
     for s in m.wCons:
-        if s[0].startswith('sink'):
+        if s[0].startswith('sink') or s[0].startswith('exit'):
             uncertain_demand_list = []
             for keys in uncertainty.keys():
                 dyn_demand = dynamic_demand[s[0]][keys[0]:keys[1]]
@@ -54,10 +54,10 @@ def uncertain_demand_calculation(m, dynamic_demand, uncertainty={(0,13): -0.1, (
                 
          
 if __name__ == "__main__":
-    ss_demand = [16.35417]*72
+    ss_demand = [16.35417]*73
     dynamic_demand = dynamic_demand_profile(ss_demand,num_time_periods = 3, epsilon = 0)
     print(dynamic_demand)
-    plt.plot(dynamic_demand)
+    plt.plot(dynamic_demand, 'o')
     # dynamic_demand = dynamic_demand_profile(ss_demand, num_time_periods=3, epsilon = 1)
     # plt.plot(dynamic_demand)
     # plt.plot(ss_demand)
