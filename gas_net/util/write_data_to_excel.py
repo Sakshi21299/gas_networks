@@ -15,9 +15,13 @@ def write_data_to_excel(sim_data, m_plant, sheets_keys_dict, file_name, terminal
     writer = pd.ExcelWriter(os.path.join(path, file_name))
     for sheet_name, keys in sheets_keys_dict.items():
         df = pd.DataFrame()
-      
+        
         for i, key in enumerate(keys):
             data_list = sim_data.get_data_from_key(key)
+            
+            # #Only for extending the ocss 
+            # data_list = data_list + data_list[1:] + data_list[1:]
+            
             df[str(key)] = data_list
         df.to_excel(writer, sheet_name=sheet_name)
             
