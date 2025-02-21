@@ -14,7 +14,7 @@ from matplotlib.lines import Line2D
 """ CREATE GRAPH """
 #==============================================================================
 TRANSPARENT = True
-FONTSIZE = 10
+FONTSIZE = 12
 AXESOFF = True
 LINEWIDTH = 4.0
 
@@ -80,7 +80,7 @@ def graph_construction(networkData):
 """ PLOT GRAPH """
 #==============================================================================
 
-def offset_labels(G, pos, offset_x = 0.1,offset_y=0):
+def offset_labels(G, pos, offset_x = 0.07,offset_y=0.0):
     pos_labels = {}
     labels = {}
     labels_to_plot = {}
@@ -142,12 +142,12 @@ def graph_plot(G, node_labels=False, edge_labels = False):
 
     # nodes labels
     if node_labels:
-        pos_labels, labels, labels_to_plot = offset_labels(G, pos, offset_x = 0, offset_y = 0.05)
+        pos_labels, labels, labels_to_plot = offset_labels(G, pos, offset_x = 0.01, offset_y = 0.05)
         nx.draw_networkx_labels(G, pos=pos_labels, labels=labels_to_plot)
 
     return 
 
-def plot_graph_with_layout(G, node_labels=False, edge_labels = False):
+def plot_graph_with_layout(G, node_labels=False, plot_edge_labels = False):
     ## draw
     # edge_colors
     edge_colors = []
@@ -173,12 +173,7 @@ def plot_graph_with_layout(G, node_labels=False, edge_labels = False):
                 color = "black"
                 width = 0.5  
                 edge_labels[a] = ''
-            edge_labels[(3, 39)] = 'C4'
-            edge_labels[(1, 18)] = 'C3'
-            edge_labels[(5, 25)] = 'C1'
-            edge_labels[(30, 7)] = 'C6'
-            edge_labels[(38, 6)] = 'C5'
-            edge_labels[(0, 10)] = 'C2'
+            
         edge_colors.append(color)
         widths.append(width)
     
@@ -187,8 +182,19 @@ def plot_graph_with_layout(G, node_labels=False, edge_labels = False):
     node_colors = ["tab:blue" for n in G.nodes]
     node_sizes = [5 for n in G.nodes]
     layout = nx.kamada_kawai_layout(G)
-    
-    pos_labels, labels, labels_to_plot = offset_labels(G, pos=layout)
+
+    pos_labels, labels, labels_to_plot = offset_labels(G, pos=layout, offset_x=0.07)
+
+    for key in pos_labels.keys():
+        if G.nodes[key]['name'] == 'sink_3':
+            x, y = pos_labels[key]
+            pos_labels[key] = (x + 0.02,y-0.02)
+        if G.nodes[key]['name'] == 'innode_2':
+            x, y = pos_labels[key]
+            pos_labels[key] = (x - 0.02,y+0.02)
+        if G.nodes[key]['name'] == 'innode_1':
+            x, y = pos_labels[key]
+            pos_labels[key] = (x + 0.02,y)
     node_colors, node_types = colorcode_nodes(labels)
     
     pl.figure()
@@ -199,26 +205,24 @@ def plot_graph_with_layout(G, node_labels=False, edge_labels = False):
             node_size = node_sizes,
             node_color=[node_colors[node_types[node]] for node in G.nodes()])
     
-    # Adjust label positions by adding the offset to the x-coordinate
-    label_positions = get_label_positions(layout, labels)
-
+    
     if node_labels:
-        nx.draw_networkx_labels(G, pos=label_positions, labels={node: f'{label}\n' for node, label in labels_to_plot.items()},
-                            font_size=7, font_color='black')
+        # Adjust label positions by adding the offset to the x-coordinate
+        #label_positions = get_label_positions(layout, labels)
+
+        nx.draw_networkx_labels(G, pos = pos_labels, labels={node: f'{label}\n' for node, label in labels_to_plot.items()},
+                            font_size=10, font_color='black')
     
-    if edge_labels:
-        edge_label_positions = {node: (x + 0.05, y-0.03) for node, (x, y) in layout.items()}
+    if plot_edge_labels:
+        edge_labels[(8, 0)] = 'C1'
+        edge_labels[(0, 1)] = 'C2'
+        edge_labels[(0, 2)] = 'C3'
     
-        edge_label_positions[3] = (layout[3][0] - 0.07, layout[3][1] + 0.15) #C4
-        edge_label_positions[1] = (layout[1][0] - 0.07, layout[1][1] + 0.15) #C3
-        edge_label_positions[5] = (layout[5][0] + 0.06, layout[5][1] + 0.1) #C1
-        edge_label_positions[0] = (layout[0][0] - 0.17, layout[0][1] + 0.05) # C2
-        edge_label_positions[38] = (layout[38][0] - 0.18, layout[38][1] + 0.05) #C5
-        edge_label_positions[30] = (layout[30][0] - 0.08, layout[30][1] + 0.17) #C6
+        edge_label_positions = {node: (x + 0.07, y+0.05) for node, (x, y) in layout.items()}
+        edge_label_positions[8] = (layout[8][0] + 0.15, layout[8][1] + 0.01)
+        edge_label_positions[1] = (layout[1][0], layout[1][1] + 0.09)
         
-        
-        
-        nx.draw_networkx_edge_labels(G, pos = edge_label_positions, edge_labels=edge_labels, font_color='red', font_size=7, rotate=False)
+        nx.draw_networkx_edge_labels(G, pos = edge_label_positions, edge_labels=edge_labels, font_color='red', font_size=10, rotate=False)
    
     node_legend_items = [Line2D([0], [0], marker='o', color='w', markerfacecolor='blue', markersize=7, label='$\mathrm{Sources (S)}$'),
                          Line2D([0], [0], marker='o', color='w', markerfacecolor='green', markersize=7, label='$\mathrm{Sinks (D)}$'),
@@ -227,10 +231,10 @@ def plot_graph_with_layout(G, node_labels=False, edge_labels = False):
                          Line2D([0], [0], color='k', markersize=7, label='$\mathrm{Pipes}$')]
     
     # Add legend to the plot
-    pl.legend(handles=node_legend_items, loc='upper right')
+    pl.legend(handles=node_legend_items)
     pl.axis("off")
 
-    pl.savefig("gaslib40_schematic.pdf")
+    pl.savefig("kai_schematic.pdf")
     return 
 
 def get_label_positions(layout, labels):
@@ -284,10 +288,10 @@ def colorcode_nodes(labels):
 
 if __name__ == "__main__":
     from gas_net.util.import_data import import_data_from_excel
-    network_data_path = r'C:\\Users\\ssnaik\\Biegler\\gas_networks_italy\\gas_networks\\gas_net\\data\\data_files\\Gaslib_40\\networkData.xlsx'
-    input_data_path = r'C:\\Users\\ssnaik\\Biegler\\gas_networks_italy\\gas_networks\\gas_net\\data\\data_files\\Gaslib_40\\inputData.xlsx'
+    network_data_path = r'C:\\Users\\ssnaik\\Biegler\\gas_networks_italy\\gas_networks\\gas_net\\data\\data_files\\kai_small\\networkData.xlsx'
+    input_data_path = r'C:\\Users\\ssnaik\\Biegler\\gas_networks_italy\\gas_networks\\gas_net\\data\\data_files\\kai_small\\inputData.xlsx'
 
     #Load network and input data
     networkData, inputData = import_data_from_excel(network_data_path, input_data_path)
     G = graph_construction(networkData)
-    plot_graph_with_layout(G, node_labels=True, edge_labels = True)
+    plot_graph_with_layout(G, node_labels=True, plot_edge_labels = True)
