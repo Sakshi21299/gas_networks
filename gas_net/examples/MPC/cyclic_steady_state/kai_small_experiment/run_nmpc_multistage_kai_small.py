@@ -134,10 +134,10 @@ def write_multistage_enmpc_stability_constraint(m):
     m.lyapunov_function_definition_multistage = pyo.Constraint(rule = _lyapunov_function_definition_multistage)
     
     def _stability_con_multistage(m):
-        m.stability_slack = pyo.Var(initialize = 0, domain = pyo.Reals)
+        m.stability_slack = pyo.Var(initialize = 0, domain = pyo.NonNegativeReals)
         return 1/3*(m.multistage_lyapunov_function_current - m.multistage_lyapunov_function_prev) <= -m.multistage_tracking_cost_plant_prev + m.stability_slack
     m.multistage_stability_con = pyo.Constraint(rule = _stability_con_multistage)
-    m.obj = pyo.Objective(expr = m.obj + 1e-3*m.stability_slack**2)
+    m.obj = pyo.Objective(expr = m.obj + 1e-3*m.stability_slack)
     return m 
 
 def tracking_objective(m):
@@ -544,7 +544,7 @@ if __name__ =="__main__":
                        "wSource": [m_plant.wSource[s, :] for s in m_plant.NodesSources],
                        "pSource": [m_plant.pSource[s, :] for s in m_plant.NodesSources]
                        }
-    write_data_to_excel(sim_data, m_plant, sheets_keys_dict, "enmpc_multistage_kai_72hrs_random_scenario_seed605.xlsx",
+    write_data_to_excel(sim_data, m_plant, sheets_keys_dict, "enmpc_multistage_kai_72hrs_random_scenario_l1_slack.xlsx",
                         controller_1_lyapunov=controller_1_lyapunov_function,
                         controller_2_lyapunov=controller_2_lyapunov_function,
                         controller_3_lyapunov=controller_3_lyapunov_function)
