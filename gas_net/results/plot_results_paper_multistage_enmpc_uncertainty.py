@@ -19,9 +19,9 @@ plt.rcParams["font.size"] = FONTSIZE
 plt.rcParams["text.usetex"] = True
 plt.rcParams["font.family"] = 'serif'
 
-path = r"C:\Users\ssnaik\Biegler\gas_networks_italy\gas_networks\gas_net\results\final_results\final_paper_results\kai_unc_demands_only\unsteady_start\repeated_experiment"
+path = r"C:\Users\ssnaik\Biegler\gas_networks_italy\gas_networks\gas_net" #\results\final_results\final_paper_results\kai_unc_demands_only\unsteady_start\repeated_experiment"
 
-file_name = r"enmpc_multistage_kai_72hrs_random_scenario_seed605.xlsx"
+file_name = r"enmpc_multistage_kai_72hrs_random_scenario_explicit_terminal_constraints_avg_stability.xlsx"
 file_path = os.path.join(path, file_name)
 df_multistage = pd.read_excel(file_path, sheet_name=None, index_col="Unnamed: 0")
 
