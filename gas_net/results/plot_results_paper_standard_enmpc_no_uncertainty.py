@@ -49,12 +49,12 @@ plt.plot(df_standard['compressor beta']['compressor_beta[' + "'compressorStation
 plt.plot(df_standard['compressor beta']['compressor_beta[' + "'compressorStation_5'" + ', :]'], color = 'r', label = '$\mathrm{C} 5$')
 plt.plot(df_standard['compressor beta']['compressor_beta[' + "'compressorStation_6'" + ', :]'], color = 'g', label = '$\mathrm{C} 6$')
 #plt.ylim(1, 1.9)
-plt.ylabel("$\mathrm{Compressor } P_{out}/P_{in} $")
+plt.ylabel("$\mathrm{Compressor }$" + r" $\beta $")
 plt.xlabel('$\mathrm{Time(hrs)}$')
 #plt.title("Compressor controls - Standard ENMPC")
 plt.legend(bbox_to_anchor=(0.96, 0.05), loc = 'lower right', fontsize = 12)
 plt.tight_layout()
-#plt.savefig(os.path.join(savefig_path,"compressor_beta_no_unc_std_enmpc.pdf"))
+plt.savefig(os.path.join(savefig_path,"compressor_beta_no_unc_std_enmpc.pdf"))
 
 #Plot source flow css
 fig , ax = plt.subplots(1,3, figsize = (20, 5))
