@@ -20,7 +20,7 @@ plt.rcParams["font.family"] = 'serif'
 
 path = r"C:\Users\ssnaik\Biegler\gas_networks_italy\gas_networks\gas_net\results\final_results"
 
-file_name = r"final_paper_results\final_paper_enmpc_multistage_random_scenario_explicit_terminal_constraints_avg_stability.xlsx"
+file_name = r"final_paper_results\final_paper_enmpc_multistage_avg_stability_l1_slack.xlsx"
 file_path = os.path.join(path, file_name)
 df_multistage = pd.read_excel(file_path, sheet_name=None, index_col="Unnamed: 0")
 
@@ -36,7 +36,7 @@ ax.set_xlabel('$\mathrm{Time(hrs)}$')
 ax.set_ylim(15.4, 17.3)
 ax.legend()
 fig.tight_layout()
-fig.savefig(os.path.join(savefig_path, "flow_at_sink_nodes_unc_multistage_enmpc.pdf"))
+fig.savefig(os.path.join(savefig_path, "flow_at_sink_nodes_unc_multistage_enmpc_l1_slack.pdf"))
 
 #Plot compressor beta
 plt.figure()
@@ -52,7 +52,7 @@ plt.xlabel('$\mathrm{Time(hrs)}$')
 #plt.title("Compressor controls - Standard ENMPC")
 plt.legend(bbox_to_anchor=(0.96, 0.45), loc = 'lower right', fontsize = 12)
 plt.tight_layout()
-plt.savefig(os.path.join(savefig_path,"compressor_beta_unc_multistage_enmpc.pdf"))
+plt.savefig(os.path.join(savefig_path,"compressor_beta_unc_multistage_enmpc_l1_slack.pdf"))
 
 #Plot lyapunov function
 plt.figure()
@@ -62,7 +62,7 @@ plt.plot(1/3*(df_multistage['controller_lyapunov']['controller_1_lyapunov'] +
 plt.ylabel("Avg Lyapunov value function")
 plt.xlabel("Time (hrs)")
 plt.tight_layout()
-plt.savefig(os.path.join(savefig_path, "lyapunov_value_function_multistage_enmpc.pdf"))
+plt.savefig(os.path.join(savefig_path, "lyapunov_value_function_multistage_enmpc_l1_slack.pdf"))
 
 fig, ax = plt.subplots()
 ax.plot(1/3*(df_multistage['controller_lyapunov']['controller_1_lyapunov'] + 
@@ -73,7 +73,7 @@ ax.set_xlabel("Time (hrs)")
 plt.xlim(10, 73)
 plt.ylim(0, 200)
 fig.tight_layout()
-fig.savefig(os.path.join(savefig_path, "lyapunov_value_function_multistage_enmpc_zoom.pdf"))
+fig.savefig(os.path.join(savefig_path, "lyapunov_value_function_multistage_enmpc_zoom_l1_slack.pdf"))
 
 #Compare enmpc and multistage total power 
 file_name = r"final_paper_results\final_paper_enmpc_periodic_without_stability_72hrs_random_uncertain_demands.xlsx"
@@ -89,7 +89,7 @@ ax.set_xlabel("Time (hrs)")
 square1 = pt.Rectangle((45, 345), 10, 200, linewidth=1, edgecolor='k', facecolor='none')
 #ax.add_patch(square1)
 fig.tight_layout()
-fig.savefig(os.path.join(savefig_path, "power_comparison_multistage_vs_std_enmpc.pdf"))
+fig.savefig(os.path.join(savefig_path, "power_comparison_multistage_vs_std_enmpc_l1_slack.pdf"))
 
 fig, ax = plt.subplots()
 ax.plot(df_multistage['wSource']['wSource[' + "'source_1'" + ', :]'], 'b', label = 'Multistage')
@@ -98,7 +98,7 @@ ax.set_ylabel("$\mathrm{Flow (kg/s)}$")
 ax.set_xlabel('$\mathrm{Time(hrs)}$')
 ax.legend()
 fig.tight_layout()
-fig.savefig(os.path.join(savefig_path, "source1_flow_multistage_vs_std_enmpc.pdf"))
+fig.savefig(os.path.join(savefig_path, "source1_flow_multistage_vs_std_enmpc_l1_slack.pdf"))
 
 fig, ax = plt.subplots()
 ax.plot(df_multistage['wSource']['wSource[' + "'source_2'" + ', :]'], 'g', label = 'Multistage')
@@ -107,7 +107,7 @@ ax.set_ylabel("$\mathrm{Flow (kg/s)}$")
 ax.set_xlabel('$\mathrm{Time(hrs)}$')
 ax.legend()
 fig.tight_layout()
-fig.savefig(os.path.join(savefig_path, "source2_flow_multistage_vs_std_enmpc.pdf"))
+fig.savefig(os.path.join(savefig_path, "source2_flow_multistage_vs_std_enmpc_l1_slack.pdf"))
 
 
 
