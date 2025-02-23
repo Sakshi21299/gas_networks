@@ -19,8 +19,8 @@ plt.rcParams["font.size"] = FONTSIZE
 plt.rcParams["text.usetex"] = True
 plt.rcParams["font.family"] = 'serif'
 
-path = r"C:\Users\ssnaik\Biegler\gas_networks_italy\gas_networks\gas_net\results\final_results\final_paper_results\kai_unc_demands_only\unsteady_start\repeated_experiment"
-file_name = r"final_paper_kai_enmpc_periodic_with_stability_72hrs_random_uncertain_demands_seed605.xlsx"
+path = r"C:\Users\ssnaik\Biegler\gas_networks_italy\gas_networks\gas_net\results\final_results\final_paper_results\kai_unc_demands_only\unsteady_start"
+file_name = r"final_paper_kai_enmpc_periodic_with_stability_72hrs_random_uncertain_demands_seed42.xlsx"
 file_path = os.path.join(path, file_name)
 df_standard = pd.read_excel(file_path, sheet_name=None, index_col="Unnamed: 0")
 
@@ -68,7 +68,7 @@ plt.tight_layout()
 #plt.savefig(os.path.join(savefig_path, "kai_sink_pressures_enmpc_unc.pdf"))
 
 #Plot multiple profiles
-file_name = r"final_paper_kai_enmpc_periodic_with_stability_72hrs_random_uncertain_demands_seed62.xlsx"
+file_name = r"final_paper_kai_enmpc_periodic_with_stability_72hrs_random_uncertain_demands_seed42.xlsx"
 file_path = os.path.join(path, file_name)
 df_standard_2 = pd.read_excel(file_path, sheet_name=None, index_col="Unnamed: 0")
 

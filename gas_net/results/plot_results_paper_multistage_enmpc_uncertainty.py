@@ -19,9 +19,9 @@ plt.rcParams["font.size"] = FONTSIZE
 plt.rcParams["text.usetex"] = True
 plt.rcParams["font.family"] = 'serif'
 
-path = r"C:\Users\ssnaik\Biegler\gas_networks_italy\gas_networks\gas_net" #\results\final_results\final_paper_results\kai_unc_demands_only\unsteady_start\repeated_experiment"
+path = r"C:\Users\ssnaik\Biegler\gas_networks_italy\gas_networks\gas_net\results\final_results\final_paper_results\kai_unc_demands_only\unsteady_start"
 
-file_name = r"enmpc_multistage_kai_72hrs_random_scenario_explicit_terminal_constraints_avg_stability.xlsx"
+file_name = r"enmpc_multistage_kai_72hrs_random_scenario_l1_slack.xlsx"
 file_path = os.path.join(path, file_name)
 df_multistage = pd.read_excel(file_path, sheet_name=None, index_col="Unnamed: 0")
 
@@ -59,8 +59,8 @@ plt.plot(1/3*(df_multistage['controller_lyapunov']['controller_1_lyapunov'] +
 plt.ylabel("Avg Lyapunov value function")
 plt.xlabel("Time (hrs)")
 plt.tight_layout()
-plt.ylim(0, 50)
-#plt.savefig(os.path.join(savefig_path, "kai-zoomed-lyapunov_value_function_multistage_enmpc.pdf"))
+#plt.ylim(0, 50)
+plt.savefig(os.path.join(savefig_path, "kai-zoomed-lyapunov_value_function_multistage_enmpc_l1_slack.pdf"))
 
 
 #Compare enmpc and multistage total power 
@@ -104,7 +104,7 @@ for i in range(5):
     ax[i].set_xlabel("Time (hrs)", fontsize = 24)
 ax[0].set_ylabel("Pressure (bar)", fontsize = 24)
 plt.tight_layout()
-#plt.savefig(os.path.join(savefig_path, "kai_sink_pressures_multistage_unc.pdf"))
+plt.savefig(os.path.join(savefig_path, "kai_sink_pressures_multistage_unc_l1_slack.pdf"))
 
 plt.figure()
 plt.plot(df_multistage['node pressure']['node_p[' + "'sink_1'" + ', :]'], 'r', label = 'Sink 1')
