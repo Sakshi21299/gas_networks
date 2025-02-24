@@ -60,7 +60,7 @@ plt.ylabel("Avg Lyapunov value function")
 plt.xlabel("Time (hrs)")
 plt.tight_layout()
 #plt.ylim(0, 50)
-plt.savefig(os.path.join(savefig_path, "kai-zoomed-lyapunov_value_function_multistage_enmpc_l1_slack.pdf"))
+plt.savefig(os.path.join(savefig_path, "kai-lyapunov_value_function_multistage_enmpc_l1_slack.pdf"))
 
 
 #Compare enmpc and multistage total power 
