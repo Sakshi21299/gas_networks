@@ -82,7 +82,7 @@ df_standard = pd.read_excel(file_path, sheet_name=None, index_col="Unnamed: 0")
 
 fig, ax = plt.subplots()
 ax.plot(df_multistage['compressor power'].sum(axis = 1)*10**3, color = 'deeppink', label = 'Multistage')
-ax.plot(df_standard['compressor power'].sum(axis = 1)*10**3, ':',color = 'k', label = 'Standard')
+ax.plot(df_standard['compressor power'].sum(axis = 1)*10**3, ':',color = 'k', label = 'Nominal')
 ax.legend()
 ax.set_ylabel("Energy (MWh)")
 ax.set_xlabel("Time (hrs)")
