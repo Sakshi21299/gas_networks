@@ -6,6 +6,7 @@ Created on Mon Dec 20 10:49:55 2021
 """
 
 import pyomo.environ as pyo
+import pyomo.dae as dae
 from gas_net.modelling_library.pipes.functions import Pipe_MassFlow, Pipe_GasDensity, Pipe_DerMass, Pipe_Pressure
 
 # PIPE: MASS CONSTRAINTS
@@ -15,7 +16,7 @@ def PIPE_mass_constr(
         m, scale, dt, method = 'BACKWARD', dynamic=True):
     
     ## assert: options ###
-    assert(method in ['BACKWARD', 'FORWARD'])
+    assert(method in ['BACKWARD', 'FORWARD', 'COLLOCATION'])
 
     ############## dynamic mass balance #########################  
     def PIPE_mass_balance_dynamic_rule(
@@ -41,7 +42,28 @@ def PIPE_mass_constr(
     
             ############## constraint #########################              
             return dMdt == (w*scale["w"] - w_next*scale["w"] - cons*scale["w"])
-
+    
+    ############## dynamic mass balance collocation ######################### 
+    if method =='COLLOCATION' and dynamic:
+        m.pipe_rho_VolCenterC = pyo.Var(m.Pipes_VolExtrR_interm, m.Times, initialize = 1)
+        m.drho_dt = dae.DerivativeVar(m.pipe_rho_VolCenterC, wrt= m.Times, initialize=1)
+        
+        def _defining_pipe_rho_VolCenterC(m, p, vol, t):
+            return m.pipe_rho_VolCenterC[p,vol,t] == m.pipe_rho[p,vol,t]
+        
+        def _defining_drho_dt(m, p, vol, t):
+            if t == m.Times.first():
+                return pyo.Constraint.Skip
+            else:
+                V = m.Area[p]*m.Length[p]
+                N = m.Nvol[p]  
+                w = Pipe_MassFlow(m, p, vol, t, N)
+                w_next = Pipe_MassFlow(m, p, vol+1, t, N) # next finite volume
+                # RHS: consumption
+                cons = m.wCons[p, vol, t]
+                return m.drho_dt[p, vol+1, t]*V/(N-1)/(dt) == (w*scale["w"] - w_next*scale["w"] - cons*scale["w"])
+       
+    
     ############## steady mass balance #########################  
     def PIPE_mass_balance_steady_rule(
             m, p, vol, t): # 1-->N-1 
@@ -58,9 +80,14 @@ def PIPE_mass_constr(
         return 0 == (w*scale["w"] - w_next*scale["w"] - cons*scale["w"])
 
     if dynamic:
-        m.PIPE_mass_balance = pyo.Constraint(
-            m.Pipes_VolCenterC, m.Times, 
-            rule = PIPE_mass_balance_dynamic_rule)
+        if method != 'COLLOCATION':
+            m.PIPE_mass_balance = pyo.Constraint(
+                m.Pipes_VolCenterC, m.Times, 
+                rule = PIPE_mass_balance_dynamic_rule)
+        else:
+            m.defining_pipe_rho_VolCenterC = pyo.Constraint(m.Pipes_VolExtrR_interm, m.Times, rule = _defining_pipe_rho_VolCenterC)
+            m.defining_drho_dt = pyo.Constraint(m.Pipes_VolCenterC, m.Times, rule = _defining_drho_dt)
+           
     else:
         m.PIPE_mass_balance = pyo.Constraint(
             m.Pipes_VolCenterC, m.Times, 
