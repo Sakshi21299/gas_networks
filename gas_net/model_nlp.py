@@ -116,5 +116,14 @@ def buildNonLinearModel(
     m = PIPE_momentum_constr(m, scale, networkData)
     m = PIPE_nlp_auxiliary_constr( m, scale)
     m = PIPE_flow_reversal_constr(m, scale)  # flow reversal         
-
+    
+    if Opt["finite_diff_time"] == 'COLLOCATION' and Opt['dynamic']:
+        discretizer = pyo.TransformationFactory('dae.collocation')
+        discretizer.apply_to(m, wrt=m.Times, nfe=Opt["nfe"], ncp=Opt["ncp"], scheme='LAGRANGE-RADAU')
+        
+        m = discretizer.reduce_collocation_points(m,
+                                                   var=m.compressor_P,
+                                                   ncp=1,
+                                                   contset=m.Times)
+        
     return m
