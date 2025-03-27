@@ -40,7 +40,7 @@ def run_model(horizon = 24, num_time_periods= 1, network_data_path = None, input
     Options['T']=Options['T0']+Options['dt']/3600
     m_steady = buildNonLinearModel(
             networkData, inputData, Options)
-
+    
     # initialization to default
     m_steady = init_network_default(m_steady, p_default = 55e5)
    
@@ -66,14 +66,24 @@ def run_model(horizon = 24, num_time_periods= 1, network_data_path = None, input
     
     m_dyn = buildNonLinearModel(
             networkData, inputData, Options)
-
+    
     # initialization to default
     m_dyn = init_network_default(m_dyn, p_default = 55e5)
 
     # fix pressure source
-    m_dyn.pSource["source_1", :].fix()
-    m_dyn.pSource["source_2", :].fix()
-    m_dyn.wSource["source_3", :].fix()
+    m_dyn.pSource["source_1", :].fix(pyo.value(m_steady.pSource["source_1", 1.0]))
+    m_dyn.pSource["source_2", :].fix(pyo.value(m_steady.pSource["source_2", 1.0]))
+    m_dyn.wSource["source_3", :].fix(pyo.value(m_steady.wSource["source_3", 1.0]))
+    
+    # Fix compressor efficiency
+    m_dyn.compressor_eta.fix(0.8)
+    
+    #Fix demand consumption
+    for s in m_dyn.wCons:
+        vol_id =  [s[1]]
+        for t in m_dyn.Times:
+            m_dyn.wCons[s[0], vol_id, t].fix(m_steady.wCons[s[0], vol_id, 1.0])
+                
     
     # fix initial state = to steady state
     t0 = m_dyn.Times.first()
@@ -86,7 +96,7 @@ def run_model(horizon = 24, num_time_periods= 1, network_data_path = None, input
     for c in m_dyn.Stations:
         m_dyn.compressor_P[c, t0] = m_steady.compressor_P[c, t0]
     m_dyn.compressor_P[:, t0].fix()
-    
+   
     # solve
     ipopt = pyo.SolverFactory("ipopt")
     res_dyn = ipopt.solve(m_dyn, tee=True)
@@ -94,12 +104,12 @@ def run_model(horizon = 24, num_time_periods= 1, network_data_path = None, input
         pyo.assert_optimal_termination(res_dyn)
     except:
         debug_gas_model(m_dyn)
-    
+      
     #Load dynamic demand profile
     demand_profiles = dynamic_demand_calculation(m_dyn, num_time_periods=num_time_periods)
     if uncertainty is not None:
         demand_profiles = uncertain_demand_calculation(m_dyn, demand_profiles, uncertainty)
-        
+    
     for s in m_dyn.wCons:
         if s[0].startswith("sink"):
             counter = 0
@@ -133,10 +143,10 @@ def run_model(horizon = 24, num_time_periods= 1, network_data_path = None, input
 if __name__ == "__main__":
     input_data_path = r'C:\\Users\\ssnaik\\Biegler\\gas_networks_italy\\gas_networks\\gas_net\\data\\data_files\\Gaslib_40\\inputData_longer_horizon.xlsx'
     network_data_path = r'C:\\Users\\ssnaik\\Biegler\\gas_networks_italy\\gas_networks\\gas_net\\data\\data_files\\Gaslib_40\\networkData.xlsx'
-    options_data_path = r'C:\Users\ssnaik\Biegler\gas_networks_italy\gas_networks\gas_net\data\Options.json'
+    options_data_path = r'C:\Users\ssnaik\Biegler\gas_networks_italy\gas_networks\gas_net\data\Options_infinite_horizon.json'
     ocss_file_path = r"C:\Users\ssnaik\Biegler\gas_networks_italy\gas_networks\gas_net\results\optimal_css_24hrs_extended.xlsx"
     
-    m_steady, m_dyn = run_model(horizon = 72, num_time_periods=3, input_data_path=input_data_path, ocss_file_path = ocss_file_path, network_data_path = network_data_path, options_data_path = options_data_path, periodic_constraints=True)
+    m_steady, m_dyn = run_model(horizon = 2, num_time_periods=2/24, input_data_path=input_data_path, ocss_file_path = ocss_file_path, network_data_path = network_data_path, options_data_path = options_data_path, periodic_constraints=False)
     
     #Plot
     plot_compressor_beta(m_dyn)
