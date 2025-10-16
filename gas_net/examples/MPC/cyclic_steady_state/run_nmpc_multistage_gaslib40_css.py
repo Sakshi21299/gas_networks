@@ -19,6 +19,7 @@ import json
 import numpy as np
 from gas_net.modelling_library.stability import apply_stability_constraint
 from gas_net.util.write_data_to_excel import write_data_to_excel
+from pyomo.common.timing import HierarchicalTimer
 
 def get_data_to_build_plant_model(network_data_path = None, 
                                   input_data_path = None, 
@@ -176,6 +177,10 @@ def run_nmpc(simulation_steps = 24,
              input_data_path = None, 
              network_data_path = None, 
              options_data_path = None):
+    
+    #Initialize hierarchical timer 
+    timer = HierarchicalTimer()
+    timer.start('Initialization')
     #Get initialized controller and plant models
     #Min scenario controller
     m_controller_1, m_plant = make_plant_and_controller_model(ocss_file_path = ocss_file_path_min, input_data_path = input_data_path,
@@ -203,6 +208,7 @@ def run_nmpc(simulation_steps = 24,
                                                                      (73, 85): 0.1, (85, 97): -0.1,
                                                                      (97, 109): 0.1, (109, 121): -0.1,
                                                                      (121, 133): 0.1, (133, 145): -0.1})
+    timer.stop('Initialization')
     apply_stability_constraint(m_controller_1)
     apply_stability_constraint(m_controller_2)
     apply_stability_constraint(m_controller_3)
@@ -389,8 +395,9 @@ def run_nmpc(simulation_steps = 24,
         #
         # Solve controller model to get inputs
         #
-       
+        timer.start('Solve_controller_model')
         res = solver.solve(m, tee=tee)
+        timer.stop('Solve_controller_model')
         try:
             pyo.assert_optimal_termination(res)
         except:
@@ -404,8 +411,9 @@ def run_nmpc(simulation_steps = 24,
         #
         # Solve plant model to simulate
         #
-       
+        timer.start('Solve_plant_model')
         res = solver.solve(m_plant, tee=tee)
+        timer.stop('Solve_plant_model')
         try:
             pyo.assert_optimal_termination(res)
         except:
@@ -491,6 +499,9 @@ def run_nmpc(simulation_steps = 24,
         plot_power_multistage(m.controller_2, label ="Nom scenario")
         plot_power_multistage(m.controller_3, label ="Max scenario")
         plt.show()
+    print(timer)
+    with open('hierarchical_timer_multistage_gaslib40.txt', 'w') as f:
+        f.write(str(timer))
     return m_plant, m, sim_data, controller_1_lyapunov_function, controller_2_lyapunov_function, controller_3_lyapunov_function
     
 if __name__ =="__main__":

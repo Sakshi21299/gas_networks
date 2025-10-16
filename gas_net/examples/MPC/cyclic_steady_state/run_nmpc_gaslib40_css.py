@@ -18,6 +18,7 @@ from gas_net.util.debug_model import debug_gas_model
 from gas_net.util.plotting_util.plot_dynamic_profiles import plot_compressor_beta, plot_compressor_power
 import json
 from gas_net.modelling_library.stability import apply_stability_constraint
+from pyomo.common.timing import HierarchicalTimer
 
 def get_data_to_build_plant_model(network_data_path = None, 
                                   input_data_path = None, 
@@ -137,9 +138,13 @@ def run_nmpc(simulation_steps = 24,
              ocss_file_path = None):
     if ocss_file_path is None:
         ocss_file_path = r"C:\Users\ssnaik\Biegler\gas_networks_italy\gas_networks\gas_net\results\optimal_css_24hrs_extended.xlsx"
-        
+     
+    timer = HierarchicalTimer()
+    timer.start('Initialization')
     #Get initialized controller and plant models
     m_controller,m_plant = make_plant_and_controller_model(ocss_file_path, horizon = controller_horizon, num_time_periods= num_time_periods)
+    timer.stop('Initialization')
+    
     apply_stability_constraint(m_controller)
     
     #Create a set for sink nodes to easily load demand profiles
@@ -227,7 +232,9 @@ def run_nmpc(simulation_steps = 24,
         #
         print(degrees_of_freedom(m_controller))
         #assert degrees_of_freedom(m_controller) == 47*6
+        timer.start('Solve_controller_model')
         res = solver.solve(m_controller, tee=tee)
+        timer.stop('Solve_controller_model')
         try:
             pyo.assert_optimal_termination(res)
         except:
@@ -243,7 +250,9 @@ def run_nmpc(simulation_steps = 24,
         #
         print(degrees_of_freedom(m_plant))
         assert degrees_of_freedom(m_plant) == 0
+        timer.start('Solve_plant_model')
         res = solver.solve(m_plant, tee=tee)
+        timer.stop('Solve_plant_model')
         pyo.assert_optimal_termination(res)
         
         #
@@ -299,6 +308,9 @@ def run_nmpc(simulation_steps = 24,
         
         print("Lyapunov function:")
         print(controller_lyapunov_function)
+    print(timer)
+    with open('hierarchical_timer_std_nmpc_gaslib40.txt', 'w') as f:
+        f.write(str(timer))
     return m_plant, m_controller, sim_data, controller_lyapunov_function
     
 if __name__ =="__main__":
