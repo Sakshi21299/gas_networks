@@ -34,11 +34,13 @@ def fix_exogenous_inputs(m, scale, Options, networkData, inputData):
                 source_name = networkData['Nodes'][compo0]["source"] 
                 compo0 = compo0.replace(compo0, source_name)
             if len(indx) == 2:  
-                value = inputData[k][compo0][t] 
+                t_inp = t%6
+                value = inputData[k][compo0][t_inp] 
             else:
                 # 3 levels dictionary: (component0, component1, time) --> es. wCons
                 compo1 = indx[1]
-                value = inputData[k][compo0][compo1][t]
+                t_inp = t%6
+                value = inputData[k][compo0][compo1][t_inp]
             # scale value
             value = value / scale_factor
             # set value in pyomo variable
