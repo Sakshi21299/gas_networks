@@ -26,31 +26,36 @@ def load_css(m_controller, ocss_file_path):
     for p, vol in m_controller.Pipes_VolExtrR_interm:
         column_name = "interm_p['" + str(p) + "', " + str(vol) +", :]" 
         for t in m_controller.Times:
-            m_controller.interm_p_ocss[p, vol, t] = df['interm_p'][column_name][t]
+            t_inp = t%6
+            m_controller.interm_p_ocss[p, vol, t] = df['interm_p'][column_name][t_inp]
     
     m_controller.compressor_beta_ocss = pyo.Var(m_controller.Stations, m_controller.Times)
     for s in m_controller.Stations:
         column_name = "compressor_beta['" + str(s) + "', :]"
         for t in m_controller.Times:
-            m_controller.compressor_beta_ocss[s, t] = df['compressor beta'][column_name][t]
+            t_inp = t%6
+            m_controller.compressor_beta_ocss[s, t] = df['compressor beta'][column_name][t_inp]
             
     m_controller.compressor_P_ocss = pyo.Var(m_controller.Stations, m_controller.Times)
     for s in m_controller.Stations:
         column_name = "compressor_P['" + str(s) + "', :]"
         for t in m_controller.Times:
-            m_controller.compressor_P_ocss[s, t] = df['compressor power'][column_name][t]
+            t_inp = t%6
+            m_controller.compressor_P_ocss[s, t] = df['compressor power'][column_name][t_inp]
             
     m_controller.wSource_ocss = pyo.Var(m_controller.NodesSources, m_controller.Times)
     for s in m_controller.NodesSources:
         column_name = "wSource['" + str(s) + "', :]"
         for t in m_controller.Times:
-            m_controller.wSource_ocss[s, t] = df['wSource'][column_name][t]
+            t_inp = t%6
+            m_controller.wSource_ocss[s, t] = df['wSource'][column_name][t_inp]
             
     m_controller.pSource_ocss = pyo.Var(m_controller.NodesSources, m_controller.Times)
     for s in m_controller.NodesSources:
         column_name = "pSource['" + str(s) + "', :]"
         for t in m_controller.Times:
-            m_controller.pSource_ocss[s, t] = df['pSource'][column_name][t]
+            t_inp = t%6
+            m_controller.pSource_ocss[s, t] = df['pSource'][column_name][t_inp]
 
     m_controller.compressor_beta_ocss.fix()
     m_controller.compressor_P_ocss.fix()
@@ -107,7 +112,7 @@ def css_terminal_constraints(m, num_time_periods = 1, horizon = 24):
     
     return m
 
-def css_terminal_constraints_each_point(m, num_time_periods = 1, horizon = 24, ocss_file_path= None):
+def css_terminal_constraints_each_point(m, num_time_periods = 1, horizon = 6, ocss_file_path= None):
     #We need the CSS here since it is used to write the terminal constraints at all times 
     #in the last period
     load_css(m, ocss_file_path)
@@ -130,7 +135,19 @@ def css_terminal_constraints_each_point(m, num_time_periods = 1, horizon = 24, o
     # m.terminal_supply_flow = pyo.Constraint(m.Pipes_VolExtrR_interm, m.last_period, rule = _terminal_supply_flow)
     return m 
     
+def css_terminal_last_point(m, horizon = 6, ocss_file_path = None):
+    load_css(m, ocss_file_path)
+    m.terminal_p_slack = pyo.Var(m.Pipes_VolExtrR_interm, initialize = 0, domain = pyo.Reals)
+    m.terminal_power_slack = pyo.Var(m.Stations, initialize = 0, domain = pyo.Reals)
     
     
+    def _terminal_pressure(m, p , vol):
+        return m.interm_p[p, vol, horizon] == m.interm_p_ocss[p, vol, 0] + m.terminal_p_slack[p, vol]
+        
+    m.terminal_pressure = pyo.Constraint(m.Pipes_VolExtrR_interm, rule = _terminal_pressure)  
 
     
+    def _terminal_comp_power_css(m, s):
+        return m.compressor_P[s, horizon] == m.compressor_P_ocss[s, 0] + m.terminal_power_slack[s]
+    m.terminal_supply_flow_css = pyo.Constraint(m.Stations, rule = _terminal_comp_power_css)
+    return m
