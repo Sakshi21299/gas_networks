@@ -89,43 +89,22 @@ def load_demand_data(m, demand_data, start, stop, soft_constraint = False):
     #This function just updates the mutable parameter actual demand 
     #and if we are not writing soft constraints on demand then fixes the demand
     #to the actual demand value
+
     for s in m.sink_node_set:
         actual_demand = demand_data[s][start:stop]
         for t_index, t in enumerate(m.Times, start=0):
             m.actual_demand[s, t] = actual_demand[t_index]
             if not soft_constraint:   
                 m.wCons[s, 0, t].fix(m.actual_demand[s, t])
-    
-def write_soft_constraints(m, terminal_constraints = False):
-   
-    m.slack = pyo.Var(m.sink_node_set, m.Times, domain = pyo.Reals)
-    
-    def _soft_constraint_on_demands(m, s, t):
-        m.wCons[s, 0, t].unfix()
-        return m.wCons[s, 0, t] == m.actual_demand[s, t] + m.slack[s, t]
-    m.demand_constraint_soft = pyo.Constraint(m.sink_node_set, m.Times, rule = _soft_constraint_on_demands)
-    
+                
+def update_controller_obj(m):
     m.ObjFun.deactivate() 
     
-    #This differentiation is necessary because plant model doesn't have terminal constraints
-    if terminal_constraints:
-        m.obj = pyo.Objective(expr = m.ObjFun
-                              + 1e5*sum(m.slack[s, t]**2 for s in m.sink_node_set for t in m.Times)
-                              + 1e5*sum(m.terminal_flow_slacks[p, vol]**2 for p, vol in m.Pipes_VolExtrC_interm)
-                              + 1e5*sum(m.terminal_pressure_slacks[p, vol]**2 for p, vol in m.Pipes_VolExtrR_interm))
-    else:
-        m.obj = pyo.Objective(expr = m.ObjFun
-                              + 1e5*sum(m.slack[s, t]**2 for s in m.sink_node_set for t in m.Times))
-def tracking_objective(m):
-    m.ObjFun.deactivate()
-    m.obj = pyo.Objective(expr = (sum((m.interm_p[p, vol, t] - m.interm_p_ocss[p, vol, t])**2 
-                                      for p, vol in m.Pipes_VolExtrR_interm for t in m.Times if t != m.Times.last()) 
-                                  + sum((m.compressor_P[s, t] - m.compressor_P_ocss[s, t])**2
-                                        for s in m.Stations for t in m.Times if t != m.Times.last())
-                                  ) 
-                          + 0*m.ObjFun
-        )
-    return m 
+    m.obj = pyo.Objective(expr = m.ObjFun + 
+                                 1e6*sum(m.terminal_p_slack[p, vol]**2 for p, vol in m.Pipes_VolExtrR_interm) + 
+                                 1e6*sum(m.terminal_power_slack[s]**2 for s in m.Stations))
+   
+
 def run_nmpc(simulation_steps = 24, 
              sample_time = 1, 
              controller_horizon = 24, 
@@ -139,7 +118,8 @@ def run_nmpc(simulation_steps = 24,
     timer.start('Initialization')
     m_controller,m_plant = make_plant_and_controller_model(ocss_file_path, horizon = controller_horizon, num_time_periods= num_time_periods)
     timer.stop('Initialization')
-    apply_stability_constraint(m_controller)
+    
+    update_controller_obj(m_controller)
     
     #Create a set for sink nodes to easily load demand profiles
     sink_node_set = [s for s in m_controller.Nodes if s.startswith("sink")]
@@ -157,6 +137,7 @@ def run_nmpc(simulation_steps = 24,
     #Get extended demand data
     #Here num time period is N which is how many times the demand profile repeats 
     demand_data = dynamic_demand_calculation(m_controller, num_time_periods = num_time_periods, extended_profile=True)
+    
     import matplotlib.pyplot as plt
     plt.plot(demand_data['sink_1'], label= 'controller demand')
     plt.plot(demand_data['sink_1'], label = 'plant demand')
@@ -194,7 +175,6 @@ def run_nmpc(simulation_steps = 24,
     sim_data = plant_interface.get_data_at_time([sim_t0])
     controller_lyapunov_function = {}
     
-    #m_controller = tracking_objective(m_controller)
     for i in range(simulation_steps):
         
         print("Running controller %d th time"%i)
@@ -211,13 +191,6 @@ def run_nmpc(simulation_steps = 24,
         stop = start + plant_horizon + 1
         load_demand_data(m_plant, demand_data, start, stop)
         
-        #Remove stability constraint if it is t = 0
-        if sim_t0 == 0.0:
-            m_controller.stability_constraint.deactivate()
-            
-        else:
-            m_controller.stability_constraint.activate()
-            
         #
         # Solve controller model to get inputs
         #
@@ -259,18 +232,6 @@ def run_nmpc(simulation_steps = 24,
         tf_data = plant_interface.get_data_at_time(m_plant.Times.last())
         plant_interface.load_data(tf_data)
         
-        #
-        # Update the stability constraint parameters
-        #
-        m_controller.lyapunov_function_prev = pyo.value(m_controller.lyapunov_function_current)
-        m_controller.tracking_cost_plant_prev = pyo.value(sum((m_plant.compressor_P[s, 1.0] - m_controller.compressor_P_ocss[s, 1.0])**2 
-                                                              for s in m_controller.Stations) + 
-                                                          sum((m_plant.interm_p[p, vol, 1.0] - m_controller.interm_p_ocss[p, vol, 1.0])**2 
-                                                              for p, vol  in m_controller.Pipes_VolExtrR_interm) 
-                                                          )
-                                                          
-        controller_lyapunov_function[sim_t0] = pyo.value(m_controller.lyapunov_function_current)
-        
         #Plot interm_p and controls for debugging
         if sim_t0 % 10 == 0:
             plt.figure()
@@ -293,24 +254,24 @@ def run_nmpc(simulation_steps = 24,
         #Update ocss at the last point to be equal to the first point
         N = num_time_periods
         K = int(controller_horizon/num_time_periods)
+       
         [m_controller.compressor_P_ocss[s, N*K].fix(m_controller.compressor_P_ocss[s, (N-1)*K]) for s in m_controller.Stations]
         [m_controller.interm_p_ocss[p, vol, N*K].fix(m_controller.interm_p_ocss[p, vol, (N-1)*K]) for p, vol in m_controller.Pipes_VolExtrR_interm]       
-            
+        #[m_controller.wSource_ocss[s, N*K].fix(m_controller.wSource_ocss[s, (N-1)*K]) for s in m_controller.NodesSources]    
         
-        print("Lyapunov function:")
-        print(controller_lyapunov_function)
+        
     print(timer)
     with open('hierarchical_timer_kai_no_uncertainty.txt', 'w') as f:
         f.write(str(timer))
-    return m_plant, m_controller, sim_data, controller_lyapunov_function
+    return m_plant, m_controller, sim_data
     
 if __name__ =="__main__":
-    ocss_file_path = r"C:\Users\ssnaik\Biegler\gas_networks_italy\gas_networks\gas_net\optimal_css_24hrs_kai.xlsx"
-    m_plant, m_controller, sim_data, controller_lyapunov_function = run_nmpc(simulation_steps = 72, 
+    ocss_file_path = r"C:\Users\ssnaik\Biegler\gas_networks_italy\gas_networks\gas_net\optimal_css_24hrs_inf_horizon.xlsx"
+    m_plant, m_controller, sim_data = run_nmpc(simulation_steps = 24, 
                                                sample_time = 1, 
-                                               controller_horizon = 72, 
+                                               controller_horizon = 60, 
                                                plant_horizon = 1,
-                                               num_time_periods=3,
+                                               num_time_periods=10,
                                                ocss_file_path=ocss_file_path)
     
     #Plot compressor power in the plant (Note: it is scaled by 1e5)
@@ -337,4 +298,5 @@ if __name__ =="__main__":
                         "wSource": [m_plant.wSource[s, :] for s in m_plant.NodesSources],
                         "pSource": [m_plant.pSource[s, :] for s in m_plant.NodesSources]
                         }
-    write_data_to_excel(sim_data, m_plant, sheets_keys_dict, "final_paper_kai_enmpc_explicit_terminal_each_point_stability_72hrs.xlsx", controller_1_lyapunov=controller_lyapunov_function)
+    
+    write_data_to_excel(sim_data, m_plant, sheets_keys_dict, "kai_inf_horizon_60hrs.xlsx")
