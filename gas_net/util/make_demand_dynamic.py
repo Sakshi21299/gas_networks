@@ -21,8 +21,10 @@ def dynamic_demand_profile(ss_demand, num_time_periods = 1, epsilon = 0):
 def dynamic_demand_profile_extended(dynamic_demand):
     dynamic_demand1 = dynamic_demand
     dynamic_demand2 = dynamic_demand[1:]
-
-    dynamic_demand_extended = np.concatenate((dynamic_demand1, dynamic_demand2))
+    dynamic_demand3 = dynamic_demand[1:]
+    dynamic_demand4 = dynamic_demand[1:]
+    dynamic_demand5 = dynamic_demand[1:]
+    dynamic_demand_extended = np.concatenate((dynamic_demand1, dynamic_demand2, dynamic_demand3, dynamic_demand4, dynamic_demand5))
     return dynamic_demand_extended
     
     
