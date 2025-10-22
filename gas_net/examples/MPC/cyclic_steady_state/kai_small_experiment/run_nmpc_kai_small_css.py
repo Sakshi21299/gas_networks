@@ -269,9 +269,9 @@ if __name__ =="__main__":
     ocss_file_path = r"C:\Users\ssnaik\Biegler\gas_networks_italy\gas_networks\gas_net\optimal_css_24hrs_inf_horizon.xlsx"
     m_plant, m_controller, sim_data = run_nmpc(simulation_steps = 24, 
                                                sample_time = 1, 
-                                               controller_horizon = 60, 
+                                               controller_horizon = 6, 
                                                plant_horizon = 1,
-                                               num_time_periods=10,
+                                               num_time_periods=1,
                                                ocss_file_path=ocss_file_path)
     
     #Plot compressor power in the plant (Note: it is scaled by 1e5)
@@ -299,4 +299,4 @@ if __name__ =="__main__":
                         "pSource": [m_plant.pSource[s, :] for s in m_plant.NodesSources]
                         }
     
-    write_data_to_excel(sim_data, m_plant, sheets_keys_dict, "kai_inf_horizon_60hrs.xlsx")
+    write_data_to_excel(sim_data, m_plant, sheets_keys_dict, "kai_inf_horizon_6hrs.xlsx")
