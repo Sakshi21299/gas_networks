@@ -42,7 +42,7 @@ def get_data_to_build_plant_model(network_data_path = None,
     
     return networkData, inputData, Options
 
-def make_plant_and_controller_model(ocss_file_path, horizon = 24, num_time_periods = 1):
+def make_plant_and_controller_model(ocss_file_path, horizon = 24, num_time_periods = 1, periodic_constraints = True):
     # Get initialized dynamic model to build controller
     # The dynamic model is initialized using a sinusoidal demand profile
     # centered around the steady state demand with a horizon of 24 hours
@@ -50,7 +50,7 @@ def make_plant_and_controller_model(ocss_file_path, horizon = 24, num_time_perio
     
     m_steady, m_dyn = run_model(horizon = horizon, num_time_periods = num_time_periods, 
                                 input_data_path=input_data_path, ocss_file_path=ocss_file_path, 
-                                periodic_constraints=True)
+                                periodic_constraints=periodic_constraints)
     m_controller = m_dyn
 
     #Make plant model 
@@ -226,6 +226,7 @@ def run_nmpc(simulation_steps = 24,
         timer.start('Solve_controller_model')
         res = solver.solve(m_controller, tee=tee)
         timer.stop('Solve_controller_model')
+        
         try:
             pyo.assert_optimal_termination(res)
         except:
@@ -272,18 +273,18 @@ def run_nmpc(simulation_steps = 24,
         controller_lyapunov_function[sim_t0] = pyo.value(m_controller.lyapunov_function_current)
         
         #Plot interm_p and controls for debugging
-        if sim_t0 % 10 == 0:
-            plt.figure()
-            for s in m_controller.Stations:
-                plt.plot(pyo.value(m_controller.compressor_beta[s, :]))
-                plt.plot(pyo.value(m_controller.compressor_beta_ocss[s, :]), ':k')
-                plt.title("At time k = %i" %int(sim_t0))
-                
-            plt.figure()
-            for s in m_controller.NodesSources:
-                plt.plot(pyo.value(m_controller.wSource[s, :]))
-                plt.plot(pyo.value(m_controller.wSource_ocss[s, :]), ':k')
-                plt.title("At time k = %i" %int(sim_t0))
+        
+        plt.figure()
+        for s in m_controller.Stations:
+            plt.plot(pyo.value(m_controller.compressor_beta[s, :]))
+            plt.plot(pyo.value(m_controller.compressor_beta_ocss[s, :]), ':k')
+            plt.title("At time k = %i" %int(sim_t0))
+            
+        plt.figure()
+        for s in m_controller.NodesSources:
+            plt.plot(pyo.value(m_controller.wSource[s, :]))
+            plt.plot(pyo.value(m_controller.wSource_ocss[s, :]), ':k')
+            plt.title("At time k = %i" %int(sim_t0))
         #
         # Re-initialize controller model
         #
@@ -310,7 +311,7 @@ if __name__ =="__main__":
                                                sample_time = 1, 
                                                controller_horizon = 72, 
                                                plant_horizon = 1,
-                                               num_time_periods=3,
+                                               num_time_periods=1,
                                                ocss_file_path=ocss_file_path)
     
     #Plot compressor power in the plant (Note: it is scaled by 1e5)
@@ -337,4 +338,5 @@ if __name__ =="__main__":
                         "wSource": [m_plant.wSource[s, :] for s in m_plant.NodesSources],
                         "pSource": [m_plant.pSource[s, :] for s in m_plant.NodesSources]
                         }
-    write_data_to_excel(sim_data, m_plant, sheets_keys_dict, "final_paper_kai_enmpc_explicit_terminal_each_point_stability_72hrs.xlsx", controller_1_lyapunov=controller_lyapunov_function)
+
+    write_data_to_excel(sim_data, m_plant, sheets_keys_dict, "kai_inf_horizon_60hrs-old.xlsx")

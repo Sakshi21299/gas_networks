@@ -17,7 +17,6 @@ from gas_net.util.import_data import import_data_from_excel
 from gas_net.util.debug_model import debug_gas_model
 from gas_net.util.plotting_util.plot_dynamic_profiles import plot_compressor_beta, plot_compressor_power
 import json
-from gas_net.modelling_library.stability import apply_stability_constraint
 
 def get_data_to_build_plant_model(network_data_path = None, 
                                   input_data_path = None, 
@@ -41,7 +40,7 @@ def get_data_to_build_plant_model(network_data_path = None,
     
     return networkData, inputData, Options
 
-def make_plant_and_controller_model(ocss_file_path, horizon = 24, num_time_periods = 1):
+def make_plant_and_controller_model(ocss_file_path, horizon = 24, num_time_periods = 1, periodic_constraints = True):
     # Get initialized dynamic model to build controller
     # The dynamic model is initialized using a sinusoidal demand profile
     # centered around the steady state demand with a horizon of 24 hours
@@ -49,7 +48,7 @@ def make_plant_and_controller_model(ocss_file_path, horizon = 24, num_time_perio
     
     m_steady, m_dyn = run_model(horizon = horizon, num_time_periods = num_time_periods, 
                                 input_data_path=input_data_path, ocss_file_path=ocss_file_path, 
-                                periodic_constraints=True)
+                                periodic_constraints=periodic_constraints)
     m_controller = m_dyn
 
     #Make plant model 
@@ -129,6 +128,7 @@ def tracking_objective(m):
                           + 0*m.ObjFun
         )
     return m 
+
 def run_nmpc(simulation_steps = 24, 
              sample_time = 1, 
              controller_horizon = 24, 
@@ -140,7 +140,7 @@ def run_nmpc(simulation_steps = 24,
         
     #Get initialized controller and plant models
     m_controller,m_plant = make_plant_and_controller_model(ocss_file_path, horizon = controller_horizon, num_time_periods= num_time_periods)
-    apply_stability_constraint(m_controller)
+    #apply_stability_constraint(m_controller)
     
     #Create a set for sink nodes to easily load demand profiles
     sink_node_set = [s for s in m_controller.Nodes if s.startswith("sink")]
@@ -302,11 +302,12 @@ def run_nmpc(simulation_steps = 24,
     return m_plant, m_controller, sim_data, controller_lyapunov_function
     
 if __name__ =="__main__":
-    m_plant, m_controller, sim_data, controller_lyapunov_function = run_nmpc(simulation_steps = 72, 
+    ocss_file_path = r"C:\Users\ssnaik\Biegler\gas_networks_italy\gas_networks\gas_net\results\optimal_css_24hrs_gaslib40_infhorizon.xlsx"
+    m_plant, m_controller, sim_data, controller_lyapunov_function = run_nmpc(simulation_steps = 24, 
                                                sample_time = 1, 
-                                               controller_horizon = 72, 
+                                               controller_horizon = 24, 
                                                plant_horizon = 1,
-                                               num_time_periods=3)
+                                               num_time_periods=1)
     
     #Plot compressor power in the plant (Note: it is scaled by 1e5)
     from pyomo.contrib.mpc.examples.cstr.model import _plot_time_indexed_variables
@@ -335,4 +336,4 @@ if __name__ =="__main__":
                         "wSource": [m_plant.wSource[s, :] for s in m_plant.NodesSources],
                         "pSource": [m_plant.pSource[s, :] for s in m_plant.NodesSources]
                         }
-    write_data_to_excel(sim_data, m_plant, sheets_keys_dict, "final_paper_enmpc_explicit_terminal_each_point_stability_72hrs.xlsx", controller_1_lyapunov=controller_lyapunov_function)
+    write_data_to_excel(sim_data, m_plant, sheets_keys_dict, "infhoriozn_enmpc_gaslib40_24hrs.xlsx", controller_1_lyapunov=controller_lyapunov_function)

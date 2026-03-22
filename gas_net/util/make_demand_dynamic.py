@@ -10,7 +10,7 @@ import pyomo.environ as pyo
 
 def dynamic_demand_profile(ss_demand, num_time_periods = 1, epsilon = 0):
     #amplitude = 1/20 #Original amplitude set for all results
-    amplitude = 1/5
+    amplitude = 1/30
     
     time_length = len(ss_demand)
     x = np.linspace(0, 2* num_time_periods*np.pi, time_length)
