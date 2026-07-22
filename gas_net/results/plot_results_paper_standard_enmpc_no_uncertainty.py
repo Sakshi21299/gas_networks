@@ -31,15 +31,15 @@ savefig_path = r"C:\Users\ssnaik"#\Biegler\gas_networks_italy\gas_networks\gas_n
 #Plot demand at sink nodes
 plt.figure()
 plt.plot(df_standard['wCons'][:], 'salmon')
-plt.plot(df_standard['wCons'][df_standard['wCons'].columns[1]], 'salmon', label = '$\mathrm{Demand \: achieved}$')
-plt.plot(df_optimal_css['wCons'][df_optimal_css['wCons'].columns[1]], ':k', label = '$\mathrm{Target \: demand}$')
+plt.plot(df_standard['wCons'][df_standard['wCons'].columns[1]], 'b', label = '$\mathrm{Demand \: achieved}$')
+#plt.plot(df_optimal_css['wCons'][df_optimal_css['wCons'].columns[1]], ':k', label = '$\mathrm{Target \: demand}$')
 plt.ylabel("$\mathrm{Flow (kg/s)}$")
 plt.xlabel('$\mathrm{Time(hrs)}$')
 #plt.title("$\mathrm{Flow at sink nodes in the plant - Standard E-NMPC}")
 #plt.ylim(15.4, 17.3)
-plt.legend()
+#plt.legend()
 plt.tight_layout()
-plt.savefig(os.path.join(savefig_path, "kai_flow_at_sink_nodes_no_unc_std_enmpc.pdf"))
+plt.savefig(os.path.join(savefig_path, "kai_target_Demand.pdf"))
 
 #Plot controls
 plt.figure()
@@ -50,8 +50,16 @@ plt.ylabel("$\mathrm{Compressor }$" + r" $\beta $")
 plt.xlabel('$\mathrm{Time(hrs)}$')
 plt.legend(fontsize = 12)
 plt.tight_layout()
-plt.savefig(os.path.join(savefig_path,"kai_compressor_beta_no_unc_std_enmpc.pdf"))
+#plt.savefig(os.path.join(savefig_path,"kai_compressor_beta_no_unc_std_enmpc.pdf"))
 
+plt.figure()
+plt.plot(df_standard['compressor power']['compressor_P[' + "'compressorStation_1'" + ', :]'], color = 'salmon', label = '$\mathrm{C} 1$')
+plt.plot(df_standard['compressor power']['compressor_P[' + "'compressorStation_2'" + ', :]'], color = 'b', label = '$\mathrm{C} 2$')
+plt.plot(df_standard['compressor power']['compressor_P[' + "'compressorStation_3'" + ', :]'], color = 'brown', label = '$\mathrm{C} 3$')
+plt.ylabel("$\mathrm{Compressor }$" + r" $P $")
+plt.xlabel('$\mathrm{Time(hrs)}$')
+plt.legend(fontsize = 12)
+plt.tight_layout()
 
 #Plot source flow css
 fig , ax = plt.subplots(1,1)
@@ -74,7 +82,7 @@ plt.plot(df_standard['controller_lyapunov'][:])
 plt.xlabel("Time (hrs)")
 plt.ylabel("Lyapunov value function")
 plt.tight_layout()
-plt.savefig(os.path.join(savefig_path, "kai-lyapunov_value_function_std_enmpc.pdf"))
+#plt.savefig(os.path.join(savefig_path, "kai-lyapunov_value_function_std_enmpc.pdf"))
 
 #Plot sink pressures
 plt.figure()
@@ -103,4 +111,4 @@ for i in range(5):
     ax[i].set_xlabel("Time (hrs)", fontsize = 24)
 ax[0].set_ylabel("Pressure (bar)", fontsize = 24)
 plt.tight_layout()
-plt.savefig(os.path.join(savefig_path, "kai_sink_pressures_enmpc_no_unc.pdf"))
+#plt.savefig(os.path.join(savefig_path, "kai_sink_pressures_enmpc_no_unc.pdf"))

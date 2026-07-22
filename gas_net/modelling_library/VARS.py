@@ -40,7 +40,7 @@ def STATIONS_vars(m):
 ###########################################################################
 
 # PIPES
-def PIPE_vars(m, scale, networkData):
+def PIPE_vars(m, scale, networkData, infinite_horizon=False):
     # finite volumes --> variables in the middle of the pipes (at boundaries, pressure = node_p, mass flow = inlet_w/outlet_w)
     m.interm_w = pyo.Var(
         m.Pipes_VolExtrC_interm, m.Times, within = pyo.Reals) 
@@ -64,6 +64,11 @@ def PIPE_vars(m, scale, networkData):
     # consumption variables --> nodes and pipes
     wcons_keys = list(m.Pipes_VolCenterC.data()) + [(n, 0) for n in m.Nodes.data() if n not in m.NodesSources.data()]
     m.wCons = pyo.Var(wcons_keys, m.Times, within = pyo.Reals)  
+    
+    if infinite_horizon:
+        
+        m.drhodt = dae.DerivativeVar(m.pipe_rho, wrt = m.Times)
+        m.gamma = pyo.Param(initialize = 1, mutable = True)
     return m       
 
 

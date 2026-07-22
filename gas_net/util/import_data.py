@@ -96,6 +96,7 @@ def import_time_varying_data_from_excel(data_path):
     pSource, wSource = rearrange_setpoint_data(df_sources)                 
     # WCONS (pipe/nodes)
     df_wcons = pd.read_excel(data_path, sheet_name = "wcons",index_col = [0,1], header = 0)
+    
     wcons = DataFrame_2levels_to_dict(df_wcons)   
     #Input gas parameters
     df_params = pd.read_excel(data_path, sheet_name = "GasParams", header = 0)

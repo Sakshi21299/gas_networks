@@ -6,7 +6,7 @@ Created on Wed Sep  4 11:23:16 2024
 """
 import pandas as pd
 import os
-path = r"C:\Users\ssnaik\Biegler\gas_networks_italy\gas_networks\gas_net"
+path = r"C:\Users\ssnaik\Biegler\gas_networks_italy\gas_networks\gas_net\results"
 def write_data_to_excel(sim_data, m_plant, sheets_keys_dict, file_name, terminal_pressure_slack_dict = None, terminal_flow_slack_dict = None, 
                         controller_1_lyapunov = None,
                         controller_2_lyapunov = None,

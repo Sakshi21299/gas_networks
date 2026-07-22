@@ -6,7 +6,7 @@ Created on Fri Sep 13 10:51:58 2024
 """
 
 import pyomo.environ as pyo
-import pandas as pd
+import numpy as np
 
 
 def apply_stability_constraint(m_controller):
@@ -22,11 +22,57 @@ def apply_stability_constraint(m_controller):
                                                      for s in m.Stations for t in m.Times if t != m.Times.last())
                                                )
     m_controller.lyapunov_function_definition = pyo.Constraint(rule = _lyapunov_function_definition)
-    
+        
     def _stability_constraint(m):
         return m.lyapunov_function_current <= m.lyapunov_function_prev - m.delta*m.tracking_cost_plant_prev
     m_controller.stability_constraint = pyo.Constraint(rule = _stability_constraint)
     
+def apply_stability_constraint_infhor(m_controller):
+    #Define tracking cost 
+    m_controller.finite.lyapunov_function_current = pyo.Var(initialize = 1)
+    m_controller.infinite.lyapunov_function_eachpt = pyo.Var(m_controller.infinite.Times, initialize = 1)
+    m_controller.infinite.lyapunov_function_current = pyo.Var(initialize = 1)
+    
+    m_controller.lyapunov_function_prev = pyo.Param(initialize = 1, mutable = True)
+    m_controller.tracking_cost_plant_prev = pyo.Param(initialize= 1, mutable = True)
+    m_controller.delta = pyo.Param(initialize = 0.1)
+    
+    def _lyapunov_function_definition_finite(m):
+        return m.finite.lyapunov_function_current== 1/1000*(sum((m.finite.pipe_rho[p, vol, t] - m.finite.pipe_rho_ocss[p, vol, t])**2 
+                                                          for p, vol in m.finite.Pipes_VolExtrR 
+                                                          for t in m.finite.Times if t != m.finite.Times.last()
+                                                          )
+                                                      )
+    m_controller.lyapunov_function_definition_finite = pyo.Constraint(rule = _lyapunov_function_definition_finite)
+    
+    # For cyclic steady state, it is necessary to determine the correct ocss point in the infinite horizon to 
+    # calculate the lyapunov function
+    def  _lyapunov_function_definition_infinite_eachpt(m, tau):
+        if tau == 1:
+            return pyo.Constraint.Skip
+        
+        # First need to convert tau to t 
+        delta_t = 3600
+        t_bar = m.finite.Times.last()
+        gamma = pyo.value(m.infinite.gamma)
+        t = t_bar + 1/gamma*np.arctanh(tau)*delta_t 
+        t_nearest = min(m.finite.Times, key=lambda x: abs(x - t/t_bar))
+
+        return  m.infinite.lyapunov_function_eachpt[tau] == sum((m.infinite.pipe_rho[p, vol, tau] - m.finite.pipe_rho_ocss[p, vol, t_nearest])**2 
+                                                          for p, vol in m.infinite.Pipes_VolExtrR)
+    m_controller.lyapunov_function_definition_eachpt = pyo.Constraint(m_controller.infinite.Times, rule = _lyapunov_function_definition_infinite_eachpt)
+    
+    #This is the actual lyapunov function definition for the infinite horizon
+    def _lyapunov_function_definition_infinite(m):
+        return m.infinite.lyapunov_function_current == 1/1000*(sum(m.infinite.lyapunov_function_eachpt[tau]
+                                              for tau in m.infinite.Times if tau != m.infinite.Times.last())
+                                              )
+    m_controller.lyapunov_function_definition_infinite = pyo.Constraint(rule = _lyapunov_function_definition_infinite)
+    
+    # This is the actual stability cinstraint on the full controller
+    def _stability_constraint(m):
+        return m.finite.lyapunov_function_current + m.finite.lyapunov_function_current <= m.lyapunov_function_prev - 1/1000*m.delta*m.tracking_cost_plant_prev
+    m_controller.stability_constraint = pyo.Constraint(rule = _stability_constraint)
     
 if __name__ == "__main__":
     from gas_net.examples.run_nlp_gaslib40 import run_model

@@ -10,13 +10,15 @@ import numpy as np
 ############################### TIME ######################################
 ###########################################################################   
 
-def TIME_sets(m, Opt):
-    T0 = Opt["T0"]
-    T = Opt["T"]
-    dt = Opt["dt"]
-    times = np.arange(T0,T+dt/3600,dt/3600)
-    m.Times = dae.ContinuousSet(initialize=times) # nmpc library works only with continuous set
-    #m.Times = pyo.Set(initialize=times)
+def TIME_sets(m, Opt, infinite_horizon = False):    
+    if infinite_horizon:
+        m.Times = dae.ContinuousSet(bounds = (0, 1))
+    else: 
+        T0 = Opt["T0"]
+        T = Opt["T"]
+        dt = Opt["dt"]
+        times = np.arange(T0,T+dt/3600,dt/3600)
+        m.Times = dae.ContinuousSet(initialize=times)
     return m
 
 ############################### NETWORK ###################################

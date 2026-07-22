@@ -3,7 +3,6 @@
 """ FUNCTIONS - PIPE FINITE VOLUMES """
 #==============================================================================
 
-
 def Pipe_GasDensity(
         m, scale, p, vol, t, N, 
         calc = True):
@@ -77,3 +76,5 @@ def Pipe_DerMass(
     rho_prev = Pipe_GasDensity(m, scale, p, vol+1, t_prev, N, calc = False)                                   
     dMdt = ((rho - rho_prev)*V/ (N-1)) / (dt)                   
     return dMdt    
+
+    

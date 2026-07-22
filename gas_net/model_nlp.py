@@ -39,7 +39,7 @@ from gas_net.modelling_library.valves import VALVE_constr
 #==============================================================================
 
 def buildNonLinearModel(
-        networkData, inputData, Opt, duals=False):
+        networkData, inputData, Opt, duals=False, infinite_horizon = False):
     
     # scale dictionary --> scales variables (variables are all defined in SI base units)
     scale = {
@@ -56,7 +56,7 @@ def buildNonLinearModel(
     ###########################################################################
     
     # TIME
-    m = TIME_sets(m, Opt)
+    m = TIME_sets(m, Opt, infinite_horizon)
     # NETWORK
     m = NODE_sets(m, networkData)
     m = ARC_sets(m, networkData)
@@ -65,7 +65,7 @@ def buildNonLinearModel(
     # PIPES
     m = PIPE_sets(m, networkData)
     # VALVES
-    m = VALVE_sets(m, networkData)
+    #m = VALVE_sets(m, networkData)
     
     ############################### PARAMS ####################################
     ###########################################################################
@@ -86,7 +86,7 @@ def buildNonLinearModel(
     # STATION
     m = STATIONS_vars(m)
     # PIPES
-    m = PIPE_vars(m, scale, networkData)
+    m = PIPE_vars(m, scale, networkData, infinite_horizon)
     # DUALS
     if duals:
         m = DUALS_ipopt_vars(m)             
@@ -108,13 +108,14 @@ def buildNonLinearModel(
     # STATION
     m = STATION_constr(m, scale, inputData)
     # VALVE
-    m = VALVE_constr(m)
+    #m = VALVE_constr(m)
     # PIPE
     m = PIPE_mass_constr(
             m, scale, Opt['dt'], 
-            method = Opt["finite_diff_time"], dynamic = Opt['dynamic'])
+            method = Opt["finite_diff_time"], dynamic = Opt['dynamic'],
+            infinite_horizon= infinite_horizon)
     m = PIPE_momentum_constr(m, scale, networkData)
     m = PIPE_nlp_auxiliary_constr( m, scale)
-    m = PIPE_flow_reversal_constr(m, scale)  # flow reversal         
-
+    m = PIPE_flow_reversal_constr(m, scale)  # flow reversal       
+    
     return m
